@@ -33,11 +33,11 @@ class Database:
         cursor.executescript("""
             CREATE TABLE IF NOT EXISTS properties (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
+                community_name TEXT DEFAULT '',
                 address TEXT NOT NULL,
+                building_unit_room TEXT DEFAULT '',
                 property_type TEXT DEFAULT '住宅',
-                bedrooms INTEGER DEFAULT 0,
-                bathrooms INTEGER DEFAULT 0,
+                house_type TEXT DEFAULT '一室一厅一卫',
                 area REAL DEFAULT 0,
                 monthly_rent REAL DEFAULT 0,
                 deposit REAL DEFAULT 0,
@@ -87,6 +87,7 @@ class Database:
                 property_name TEXT DEFAULT '',
                 amount REAL DEFAULT 0,
                 payment_date TEXT NOT NULL,
+                next_payment_date TEXT DEFAULT '',
                 payment_type TEXT DEFAULT '租金',
                 payment_method TEXT DEFAULT '微信支付',
                 status TEXT DEFAULT '已支付',
@@ -103,22 +104,60 @@ class Database:
         self.conn.commit()
 
     def _migrate(self):
-        """数据库迁移：添加新字段到已有表"""
+        """数据库迁移：兼容旧表结构"""
         cursor = self.conn.cursor()
+        # 检查旧表字段（name -> community_name）
+        try:
+            cursor.execute("SELECT community_name FROM properties LIMIT 1")
+        except sqlite3.OperationalError:
+            try:
+                # 旧表有 name 字段，迁移到新字段
+                cursor.execute("SELECT name FROM properties LIMIT 1")
+                cursor.execute("ALTER TABLE properties RENAME COLUMN name TO community_name")
+                self.conn.commit()
+                print("迁移: properties.name -> community_name")
+            except sqlite3.OperationalError:
+                pass
+
+        # 检查 building_unit_room
+        try:
+            cursor.execute("SELECT building_unit_room FROM properties LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE properties ADD COLUMN building_unit_room TEXT DEFAULT ''")
+            self.conn.commit()
+            print("迁移: properties 添加 building_unit_room")
+
+        # 检查 house_type
+        try:
+            cursor.execute("SELECT house_type FROM properties LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE properties ADD COLUMN house_type TEXT DEFAULT '一室一厅一卫'")
+            self.conn.commit()
+            print("迁移: properties 添加 house_type")
+
+        # 检查 payment_frequency
         try:
             cursor.execute("SELECT payment_frequency FROM leases LIMIT 1")
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE leases ADD COLUMN payment_frequency TEXT DEFAULT '月付'")
             self.conn.commit()
-            print("数据库迁移: 已添加 payment_frequency 字段")
+            print("迁移: leases 添加 payment_frequency")
+
+        # 检查 next_payment_date
+        try:
+            cursor.execute("SELECT next_payment_date FROM payments LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE payments ADD COLUMN next_payment_date TEXT DEFAULT ''")
+            self.conn.commit()
+            print("迁移: payments 添加 next_payment_date")
 
     # ==================== 房源操作 ====================
 
     def add_property(self, prop: Property) -> int:
         cursor = self.conn.cursor()
         cursor.execute("""
-            INSERT INTO properties (name, address, property_type, bedrooms, bathrooms,
-                                    area, monthly_rent, deposit, status, description)
+            INSERT INTO properties (community_name, address, building_unit_room,
+                property_type, house_type, area, monthly_rent, deposit, status, description)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, prop.to_tuple())
         self.conn.commit()
@@ -127,9 +166,9 @@ class Database:
     def update_property(self, prop: Property) -> bool:
         cursor = self.conn.cursor()
         cursor.execute("""
-            UPDATE properties SET name=?, address=?, property_type=?, bedrooms=?,
-                bathrooms=?, area=?, monthly_rent=?, deposit=?, status=?,
-                description=?, updated_at=datetime('now','localtime')
+            UPDATE properties SET community_name=?, address=?, building_unit_room=?,
+                property_type=?, house_type=?, area=?, monthly_rent=?, deposit=?,
+                status=?, description=?, updated_at=datetime('now','localtime')
             WHERE id=?
         """, (*prop.to_tuple(), prop.id))
         self.conn.commit()
@@ -145,26 +184,26 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM properties WHERE id=?", (prop_id,))
         row = cursor.fetchone()
-        return Property.from_row(row) if row else None
+        return Property.from_row(tuple(row)) if row else None
 
     def search_properties(self, keyword: str = "", status: str = "") -> List[Property]:
         cursor = self.conn.cursor()
         query = "SELECT * FROM properties WHERE 1=1"
         params = []
         if keyword:
-            query += " AND (name LIKE ? OR address LIKE ? OR description LIKE ?)"
-            params.extend([f"%{keyword}%"] * 3)
+            query += " AND (community_name LIKE ? OR address LIKE ? OR building_unit_room LIKE ? OR description LIKE ?)"
+            params.extend([f"%{keyword}%"] * 4)
         if status:
             query += " AND status=?"
             params.append(status)
         query += " ORDER BY updated_at DESC"
         cursor.execute(query, params)
-        return [Property.from_row(row) for row in cursor.fetchall()]
+        return [Property.from_row(tuple(row)) for row in cursor.fetchall()]
 
     def get_all_properties(self) -> List[Property]:
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM properties ORDER BY updated_at DESC")
-        return [Property.from_row(row) for row in cursor.fetchall()]
+        return [Property.from_row(tuple(row)) for row in cursor.fetchall()]
 
     # ==================== 租客操作 ====================
 
@@ -294,7 +333,6 @@ class Database:
         return [Lease.from_row(tuple(row)) for row in cursor.fetchall()]
 
     def get_active_leases_with_reminders(self) -> List[Lease]:
-        """获取生效中的合同，附带缴费提醒信息"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM leases WHERE status='生效中' ORDER BY updated_at DESC")
         return [Lease.from_row(tuple(row)) for row in cursor.fetchall()]
@@ -305,11 +343,12 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("""
             INSERT INTO payments (lease_id, tenant_name, property_name, amount,
-                                  payment_date, payment_type, payment_method, status, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                  payment_date, next_payment_date, payment_type,
+                                  payment_method, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (payment.lease_id, payment.tenant_name, payment.property_name,
-              payment.amount, payment.payment_date, payment.payment_type,
-              payment.payment_method, payment.status, payment.notes))
+              payment.amount, payment.payment_date, payment.next_payment_date,
+              payment.payment_type, payment.payment_method, payment.status, payment.notes))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -317,12 +356,13 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("""
             UPDATE payments SET lease_id=?, tenant_name=?, property_name=?,
-                amount=?, payment_date=?, payment_type=?, payment_method=?,
-                status=?, notes=?
+                amount=?, payment_date=?, next_payment_date=?, payment_type=?,
+                payment_method=?, status=?, notes=?
             WHERE id=?
         """, (payment.lease_id, payment.tenant_name, payment.property_name,
-              payment.amount, payment.payment_date, payment.payment_type,
-              payment.payment_method, payment.status, payment.notes, payment.id))
+              payment.amount, payment.payment_date, payment.next_payment_date,
+              payment.payment_type, payment.payment_method, payment.status,
+              payment.notes, payment.id))
         self.conn.commit()
         return cursor.rowcount > 0
 
@@ -390,23 +430,20 @@ class Database:
         cursor.execute("SELECT COUNT(*) FROM payments WHERE status='已逾期'")
         stats["overdue_payments"] = cursor.fetchone()[0]
 
-        # 待缴费提醒
         cursor.execute("SELECT COUNT(*) FROM leases WHERE status='生效中'")
         stats["active_lease_count"] = cursor.fetchone()[0]
 
-        # 本月需缴费的合同数
         stats["due_this_month"] = self._count_due_this_month()
 
         return stats
 
     def _count_due_this_month(self) -> int:
-        """统计本月内需要缴费的合同数（距离缴费日 <= 7天）"""
-        from models import Lease
+        from models import Lease as L
         count = 0
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM leases WHERE status='生效中'")
         for row in cursor.fetchall():
-            lease = Lease.from_row(tuple(row))
+            lease = L.from_row(tuple(row))
             days = lease.get_days_until_next_payment()
             if days is not None and 0 <= days <= 7:
                 count += 1

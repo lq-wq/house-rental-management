@@ -35,17 +35,17 @@ jobs:
         pip install pyinstaller
 
     - name: 使用 PyInstaller 构建 EXE
-      run: pyinstaller --onefile --windowed --name "房屋租赁管理系统" --add-data "README.md;." main.py
+      run: pyinstaller --onefile --windowed --name "HouseRentalManager" main.py
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4
       with:
         name: 房屋租赁管理系统-Windows-x64
-        path: dist/房屋租赁管理系统.exe
+        path: dist/HouseRentalManager.exe
 
     - name: 创建 Release（仅当打标签时触发）
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/房屋租赁管理系统.exe
+        files: dist/HouseRentalManager.exe
         generate_release_notes: true

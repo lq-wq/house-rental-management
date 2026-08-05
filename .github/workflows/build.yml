@@ -9,6 +9,11 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+# ====== 关键修复：显式授予写入权限 ======
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build:
     runs-on: windows-latest
@@ -46,7 +51,7 @@ jobs:
         name: 房屋租赁管理系统-Windows-x64
         path: dist/HouseRentalManager.exe
 
-    # 每次推送到 main 都自动创建 Release
+    # 每次推送到 main 自动创建 Release
     - name: 创建 Release
       id: create_release
       uses: softprops/action-gh-release@v1
@@ -57,9 +62,9 @@ jobs:
         generate_release_notes: true
         body: |
           自动构建 #${{ github.run_number }}
-          
+
           构建时间: ${{ github.event.repository.updated_at }}
-          
+
           包含功能:
           - 房源管理
           - 租客管理

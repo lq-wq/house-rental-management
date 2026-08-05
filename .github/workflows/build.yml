@@ -16,7 +16,6 @@ jobs:
       matrix:
         python-version: ["3.10"]
 
-    # 允许 Node 20 的 Action 在 Node 24 运行时上继续运行
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
@@ -34,8 +33,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install pyinstaller
 
-    - name: 使用 PyInstaller 构建 EXE
-      run: pyinstaller --onefile --windowed --name "HouseRentalManager" main.py
+    - name: 生成房子图标
+      run: python generate_icon.py
+
+    - name: 使用 PyInstaller 构建 EXE（带图标）
+      run: pyinstaller --onefile --windowed --name "HouseRentalManager" --icon "house.ico" main.py
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4

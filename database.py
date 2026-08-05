@@ -1,9 +1,9 @@
 """房屋租赁管理系统 - 数据库操作层"""
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, date
 from typing import List, Optional, Tuple
-from models import Property, Tenant, Lease, Payment
+from models import Property, Tenant, Lease, Payment, PAYMENT_FREQUENCIES
 
 
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,6 +26,7 @@ class Database:
         self.conn = sqlite3.connect(DB_PATH)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
+        self._migrate()
 
     def _create_tables(self):
         cursor = self.conn.cursor()
@@ -70,6 +71,7 @@ class Database:
                 monthly_rent REAL DEFAULT 0,
                 deposit_amount REAL DEFAULT 0,
                 payment_day INTEGER DEFAULT 1,
+                payment_frequency TEXT DEFAULT '月付',
                 status TEXT DEFAULT '生效中',
                 notes TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now','localtime')),
@@ -99,6 +101,16 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_payments_lease ON payments(lease_id);
         """)
         self.conn.commit()
+
+    def _migrate(self):
+        """数据库迁移：添加新字段到已有表"""
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("SELECT payment_frequency FROM leases LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE leases ADD COLUMN payment_frequency TEXT DEFAULT '月付'")
+            self.conn.commit()
+            print("数据库迁移: 已添加 payment_frequency 字段")
 
     # ==================== 房源操作 ====================
 
@@ -212,14 +224,13 @@ class Database:
         cursor.execute("""
             INSERT INTO leases (property_id, tenant_id, property_name, tenant_name,
                                 start_date, end_date, monthly_rent, deposit_amount,
-                                payment_day, status, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                payment_day, payment_frequency, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (lease.property_id, lease.tenant_id, lease.property_name,
               lease.tenant_name, lease.start_date, lease.end_date,
               lease.monthly_rent, lease.deposit_amount, lease.payment_day,
-              lease.status, lease.notes))
+              lease.payment_frequency, lease.status, lease.notes))
         self.conn.commit()
-        # 创建合同时自动将房源状态更新为"已出租"
         cursor.execute("UPDATE properties SET status='已出租', updated_at=datetime('now','localtime') WHERE id=?", (lease.property_id,))
         self.conn.commit()
         return cursor.lastrowid
@@ -229,18 +240,17 @@ class Database:
         cursor.execute("""
             UPDATE leases SET property_id=?, tenant_id=?, property_name=?,
                 tenant_name=?, start_date=?, end_date=?, monthly_rent=?,
-                deposit_amount=?, payment_day=?, status=?, notes=?,
+                deposit_amount=?, payment_day=?, payment_frequency=?, status=?, notes=?,
                 updated_at=datetime('now','localtime')
             WHERE id=?
         """, (lease.property_id, lease.tenant_id, lease.property_name,
               lease.tenant_name, lease.start_date, lease.end_date,
               lease.monthly_rent, lease.deposit_amount, lease.payment_day,
-              lease.status, lease.notes, lease.id))
+              lease.payment_frequency, lease.status, lease.notes, lease.id))
         self.conn.commit()
         return cursor.rowcount > 0
 
     def terminate_lease(self, lease_id: int) -> bool:
-        """解约合同，同时将房源状态恢复为待出租"""
         cursor = self.conn.cursor()
         lease = self.get_lease(lease_id)
         if not lease:
@@ -260,7 +270,9 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM leases WHERE id=?", (lease_id,))
         row = cursor.fetchone()
-        return Lease.from_row(row) if row else None
+        if row:
+            return Lease.from_row(tuple(row))
+        return None
 
     def search_leases(self, keyword: str = "", status: str = "") -> List[Lease]:
         cursor = self.conn.cursor()
@@ -274,12 +286,18 @@ class Database:
             params.append(status)
         query += " ORDER BY updated_at DESC"
         cursor.execute(query, params)
-        return [Lease.from_row(row) for row in cursor.fetchall()]
+        return [Lease.from_row(tuple(row)) for row in cursor.fetchall()]
 
     def get_all_leases(self) -> List[Lease]:
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM leases ORDER BY updated_at DESC")
-        return [Lease.from_row(row) for row in cursor.fetchall()]
+        return [Lease.from_row(tuple(row)) for row in cursor.fetchall()]
+
+    def get_active_leases_with_reminders(self) -> List[Lease]:
+        """获取生效中的合同，附带缴费提醒信息"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM leases WHERE status='生效中' ORDER BY updated_at DESC")
+        return [Lease.from_row(tuple(row)) for row in cursor.fetchall()]
 
     # ==================== 缴费操作 ====================
 
@@ -346,7 +364,6 @@ class Database:
         cursor = self.conn.cursor()
         stats = {}
 
-        # 房源统计
         cursor.execute("SELECT COUNT(*) FROM properties")
         stats["total_properties"] = cursor.fetchone()[0]
         cursor.execute("SELECT COUNT(*) FROM properties WHERE status='待出租'")
@@ -354,15 +371,12 @@ class Database:
         cursor.execute("SELECT COUNT(*) FROM properties WHERE status='已出租'")
         stats["rented_properties"] = cursor.fetchone()[0]
 
-        # 租客统计
         cursor.execute("SELECT COUNT(*) FROM tenants")
         stats["total_tenants"] = cursor.fetchone()[0]
 
-        # 合同统计
         cursor.execute("SELECT COUNT(*) FROM leases WHERE status='生效中'")
         stats["active_leases"] = cursor.fetchone()[0]
 
-        # 收入统计（本月）
         current_month = datetime.now().strftime("%Y-%m")
         cursor.execute(
             "SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payment_date LIKE ? AND status='已支付'",
@@ -370,18 +384,35 @@ class Database:
         )
         stats["monthly_income"] = cursor.fetchone()[0]
 
-        # 总收入（所有已支付）
         cursor.execute("SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status='已支付'")
         stats["total_income"] = cursor.fetchone()[0]
 
-        # 逾期未缴
         cursor.execute("SELECT COUNT(*) FROM payments WHERE status='已逾期'")
         stats["overdue_payments"] = cursor.fetchone()[0]
 
+        # 待缴费提醒
+        cursor.execute("SELECT COUNT(*) FROM leases WHERE status='生效中'")
+        stats["active_lease_count"] = cursor.fetchone()[0]
+
+        # 本月需缴费的合同数
+        stats["due_this_month"] = self._count_due_this_month()
+
         return stats
 
+    def _count_due_this_month(self) -> int:
+        """统计本月内需要缴费的合同数（距离缴费日 <= 7天）"""
+        from models import Lease
+        count = 0
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM leases WHERE status='生效中'")
+        for row in cursor.fetchall():
+            lease = Lease.from_row(tuple(row))
+            days = lease.get_days_until_next_payment()
+            if days is not None and 0 <= days <= 7:
+                count += 1
+        return count
+
     def get_monthly_income_report(self, year: int) -> List[Tuple[str, float]]:
-        """获取指定年份的月度收入报表"""
         cursor = self.conn.cursor()
         cursor.execute("""
             SELECT substr(payment_date, 1, 7) as month, COALESCE(SUM(amount), 0)

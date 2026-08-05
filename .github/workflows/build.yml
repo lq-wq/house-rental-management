@@ -9,7 +9,6 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-# ====== 关键修复：显式授予写入权限 ======
 permissions:
   contents: write
   actions: read
@@ -26,50 +25,47 @@ jobs:
       PYTHONIOENCODING: utf-8
 
     steps:
-    - name: 检出代码
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: 设置 Python ${{ matrix.python-version }}
+    - name: Setup Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: 安装依赖
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
 
-    - name: 生成房子图标
+    - name: Generate house icon
       run: python generate_icon.py
 
-    - name: 使用 PyInstaller 构建 EXE（带图标）
-      run: pyinstaller --onefile --windowed --name "HouseRentalManager" --icon "house.ico" main.py
+    - name: Build EXE with PyInstaller
+      run: pyinstaller --onefile --windowed --name "HouseRentalManager" --icon "house.ico" --add-data "house.ico;." main.py
 
-    - name: 上传构建产物
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: 房屋租赁管理系统-Windows-x64
+        name: HouseRentalManager-Windows-x64
         path: dist/HouseRentalManager.exe
 
-    # 每次推送到 main 自动创建 Release
-    - name: 创建 Release
+    - name: Create Release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: build-${{ github.run_number }}
-        name: 房屋租赁管理系统 v2.0 (Build ${{ github.run_number }})
+        name: House Rental Manager v2.0 (Build ${{ github.run_number }})
         files: dist/HouseRentalManager.exe
         generate_release_notes: true
         body: |
-          自动构建 #${{ github.run_number }}
+          Auto-build #${{ github.run_number }}
 
-          构建时间: ${{ github.event.repository.updated_at }}
-
-          包含功能:
-          - 房源管理
-          - 租客管理
-          - 合同管理（支持月付/季付/半年付/年付）
-          - 缴费管理（自动提醒）
-          - 数据仪表盘
+          Features:
+          - Property management (community, building/unit/room, layout)
+          - Contract & Tenant management (merged)
+          - Payment records with auto-generated next due date
+          - Payment frequency: Monthly/Quarterly/Semi-Annual/Annual
+          - Dashboard with payment reminders
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

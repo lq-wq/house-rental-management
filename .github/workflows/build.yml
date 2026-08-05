@@ -7,7 +7,7 @@ on:
       - 'v*'
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch:          # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,6 +15,10 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10"]
+
+    # 允许 Node 20 的 Action 在 Node 24 运行时上继续运行
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
     - name: 检出代码
@@ -31,12 +35,7 @@ jobs:
         pip install pyinstaller
 
     - name: 使用 PyInstaller 构建 EXE
-      run: |
-        pyinstaller --onefile --windowed --name "房屋租赁管理系统" `
-          --icon NONE `
-          --add-data "README.md;." `
-          --hidden-import "sqlite3" `
-          main.py
+      run: pyinstaller --onefile --windowed --name "房屋租赁管理系统" --add-data "README.md;." main.py
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4

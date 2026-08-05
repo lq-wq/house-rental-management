@@ -46,9 +46,25 @@ jobs:
         name: 房屋租赁管理系统-Windows-x64
         path: dist/HouseRentalManager.exe
 
-    - name: 创建 Release（仅当打标签时触发）
-      if: startsWith(github.ref, 'refs/tags/')
+    # 每次推送到 main 都自动创建 Release
+    - name: 创建 Release
+      id: create_release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: build-${{ github.run_number }}
+        name: 房屋租赁管理系统 v2.0 (Build ${{ github.run_number }})
         files: dist/HouseRentalManager.exe
         generate_release_notes: true
+        body: |
+          自动构建 #${{ github.run_number }}
+          
+          构建时间: ${{ github.event.repository.updated_at }}
+          
+          包含功能:
+          - 房源管理
+          - 租客管理
+          - 合同管理（支持月付/季付/半年付/年付）
+          - 缴费管理（自动提醒）
+          - 数据仪表盘
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

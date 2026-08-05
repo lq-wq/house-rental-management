@@ -213,7 +213,7 @@ class RentalManagementApp:
 
         title_label = tk.Label(
             header,
-            text="🏠  房屋租赁管理系统",
+            text="房屋租赁管理系统",
             font=("Microsoft YaHei", 18, "bold"),
             bg=Theme.HEADER_BG,
             fg=Theme.HEADER_TEXT,
@@ -279,21 +279,20 @@ class RentalManagementApp:
         y = (sh - h) // 2
         self.root.geometry(f"{w}x{h}+{x}+{y}")
 
-    # ==================== 创建卡片工具 ====================
+    # ==================== 创建卡片工具（修复版） ====================
 
     def _create_card(self, parent, title, value, color=Theme.ACCENT, badge="", **kwargs):
         """创建统计卡片"""
         card = tk.Frame(parent, bg=Theme.CARD, highlightbackground=Theme.BORDER,
                        highlightthickness=1, **kwargs)
-        card.pack_propagate(False)
 
         # 顶部色条
         color_bar = tk.Frame(card, bg=color, height=4)
         color_bar.pack(fill=tk.X)
 
-        # 内容区域
-        content = tk.Frame(card, bg=Theme.CARD, padx=15, pady=(12, 15))
-        content.pack(fill=tk.BOTH, expand=True)
+        # 内容区域 — padx/pady 放在 pack() 中，不在 Frame() 构造函数中
+        content = tk.Frame(card, bg=Theme.CARD)
+        content.pack(fill=tk.BOTH, expand=True, padx=15, pady=(12, 15))
 
         # 值
         value_label = tk.Label(
@@ -329,7 +328,7 @@ class RentalManagementApp:
 
     def _create_dashboard_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
-        self.notebook.add(frame, text="📊 仪表盘")
+        self.notebook.add(frame, text="仪表盘")
 
         # 标题
         tk.Label(
@@ -349,8 +348,8 @@ class RentalManagementApp:
             ("rented_properties", "已出租", "0", Theme.PRIMARY),
             ("total_tenants", "租客总数", "0", Theme.ACCENT),
             ("active_leases", "生效合同", "0", Theme.SUCCESS),
-            ("monthly_income", "本月收入", "¥0.00", Theme.WARNING),
-            ("total_income", "总收入", "¥0.00", Theme.DANGER),
+            ("monthly_income", "本月收入", "0.00", Theme.WARNING),
+            ("total_income", "总收入", "0.00", Theme.DANGER),
             ("overdue_payments", "逾期缴费", "0", Theme.DANGER),
         ]
 
@@ -362,7 +361,7 @@ class RentalManagementApp:
 
         # ====== 缴费提醒区域 ======
         tk.Label(
-            frame, text="⏰ 缴费提醒",
+            frame, text="缴费提醒",
             font=("Microsoft YaHei", 14, "bold"),
             bg=Theme.BG, fg=Theme.PRIMARY
         ).pack(anchor=tk.W, pady=(20, 5), padx=15)
@@ -382,15 +381,15 @@ class RentalManagementApp:
         btn_frame = tk.Frame(frame, bg=Theme.BG)
         btn_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
 
-        ttk.Button(btn_frame, text="＋ 添加房源", command=self._show_add_property,
+        ttk.Button(btn_frame, text="+ 添加房源", command=self._show_add_property,
                    style="Primary.TButton").pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="＋ 添加租客", command=self._show_add_tenant,
+        ttk.Button(btn_frame, text="+ 添加租客", command=self._show_add_tenant,
                    style="Primary.TButton").pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="＋ 新建合同", command=self._show_add_lease,
+        ttk.Button(btn_frame, text="+ 新建合同", command=self._show_add_lease,
                    style="Success.TButton").pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="💰 记录缴费", command=self._show_add_payment,
+        ttk.Button(btn_frame, text="记录缴费", command=self._show_add_payment,
                    style="Primary.TButton").pack(side=tk.LEFT, padx=3)
-        ttk.Button(btn_frame, text="🔄 刷新数据", command=self._refresh_dashboard,
+        ttk.Button(btn_frame, text="刷新数据", command=self._refresh_dashboard,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=3)
 
     def _refresh_reminders(self):
@@ -405,8 +404,6 @@ class RentalManagementApp:
             next_date = lease.get_next_payment_date()
             amount = lease.get_payment_amount()
             if next_date:
-                status_text = ""
-                color = Theme.SUCCESS
                 if days is None:
                     continue
                 elif days < 0:
@@ -427,18 +424,17 @@ class RentalManagementApp:
                 reminders.append((days, lease, next_date, amount, status_text, color))
 
         if not reminders:
-            # 检查是否有生效中的合同
             if leases:
                 tk.Label(
                     self.reminder_frame,
-                    text="✅ 近期无待缴费提醒，所有合同均在正常缴费周期内",
+                    text="近期无待缴费提醒，所有合同均在正常缴费周期内",
                     font=("Microsoft YaHei", 11),
                     bg=Theme.BG, fg=Theme.SUCCESS
                 ).pack(anchor=tk.W, pady=10)
             else:
                 tk.Label(
                     self.reminder_frame,
-                    text="📌 暂无生效中的合同",
+                    text="暂无生效中的合同",
                     font=("Microsoft YaHei", 11),
                     bg=Theme.BG, fg=Theme.TEXT_SECONDARY
                 ).pack(anchor=tk.W, pady=10)
@@ -512,7 +508,6 @@ class RentalManagementApp:
         for key, (title, value, color) in mapping.items():
             if key in self._stat_cards:
                 card = self._stat_cards[key]
-                # 更新卡片内容
                 for child in card.winfo_children():
                     if isinstance(child, tk.Frame):
                         for sub in child.winfo_children():
@@ -528,19 +523,19 @@ class RentalManagementApp:
 
     def _create_property_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
-        self.notebook.add(frame, text="🏠 房源管理")
+        self.notebook.add(frame, text="房源管理")
 
         # 工具栏
         toolbar = tk.Frame(frame, bg=Theme.BG)
         toolbar.pack(fill=tk.X, pady=8, padx=10)
 
-        ttk.Button(toolbar, text="＋ 添加房源", command=self._show_add_property,
+        ttk.Button(toolbar, text="+ 添加房源", command=self._show_add_property,
                    style="Primary.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="✏️ 编辑", command=self._edit_property,
+        ttk.Button(toolbar, text="编辑", command=self._edit_property,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🗑️ 删除", command=self._delete_property,
+        ttk.Button(toolbar, text="删除", command=self._delete_property,
                    style="Danger.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔄 刷新", command=self._refresh_property_list,
+        ttk.Button(toolbar, text="刷新", command=self._refresh_property_list,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
 
         tk.Label(toolbar, text="搜索:", bg=Theme.BG, fg=Theme.TEXT,
@@ -651,18 +646,18 @@ class RentalManagementApp:
 
     def _create_tenant_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
-        self.notebook.add(frame, text="👤 租客管理")
+        self.notebook.add(frame, text="租客管理")
 
         toolbar = tk.Frame(frame, bg=Theme.BG)
         toolbar.pack(fill=tk.X, pady=8, padx=10)
 
-        ttk.Button(toolbar, text="＋ 添加租客", command=self._show_add_tenant,
+        ttk.Button(toolbar, text="+ 添加租客", command=self._show_add_tenant,
                    style="Primary.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="✏️ 编辑", command=self._edit_tenant,
+        ttk.Button(toolbar, text="编辑", command=self._edit_tenant,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🗑️ 删除", command=self._delete_tenant,
+        ttk.Button(toolbar, text="删除", command=self._delete_tenant,
                    style="Danger.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔄 刷新", command=self._refresh_tenant_list,
+        ttk.Button(toolbar, text="刷新", command=self._refresh_tenant_list,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
 
         tk.Label(toolbar, text="搜索:", bg=Theme.BG, fg=Theme.TEXT,
@@ -749,18 +744,18 @@ class RentalManagementApp:
 
     def _create_lease_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
-        self.notebook.add(frame, text="📄 合同管理")
+        self.notebook.add(frame, text="合同管理")
 
         toolbar = tk.Frame(frame, bg=Theme.BG)
         toolbar.pack(fill=tk.X, pady=8, padx=10)
 
-        ttk.Button(toolbar, text="＋ 新建合同", command=self._show_add_lease,
+        ttk.Button(toolbar, text="+ 新建合同", command=self._show_add_lease,
                    style="Success.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="📋 查看详情", command=self._view_lease,
+        ttk.Button(toolbar, text="查看详情", command=self._view_lease,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔓 解约合同", command=self._terminate_lease,
+        ttk.Button(toolbar, text="解约合同", command=self._terminate_lease,
                    style="Danger.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔄 刷新", command=self._refresh_lease_list,
+        ttk.Button(toolbar, text="刷新", command=self._refresh_lease_list,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
 
         tk.Label(toolbar, text="搜索:", bg=Theme.BG, fg=Theme.TEXT,
@@ -876,18 +871,18 @@ class RentalManagementApp:
 
     def _create_payment_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
-        self.notebook.add(frame, text="💰 缴费管理")
+        self.notebook.add(frame, text="缴费管理")
 
         toolbar = tk.Frame(frame, bg=Theme.BG)
         toolbar.pack(fill=tk.X, pady=8, padx=10)
 
-        ttk.Button(toolbar, text="💰 记录缴费", command=self._show_add_payment,
+        ttk.Button(toolbar, text="记录缴费", command=self._show_add_payment,
                    style="Primary.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="✏️ 编辑", command=self._edit_payment,
+        ttk.Button(toolbar, text="编辑", command=self._edit_payment,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🗑️ 删除", command=self._delete_payment,
+        ttk.Button(toolbar, text="删除", command=self._delete_payment,
                    style="Danger.TButton").pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="🔄 刷新", command=self._refresh_payment_list,
+        ttk.Button(toolbar, text="刷新", command=self._refresh_payment_list,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
 
         tk.Label(toolbar, text="搜索:", bg=Theme.BG, fg=Theme.TEXT,
@@ -1021,13 +1016,13 @@ class RentalManagementApp:
             "关于",
             "房屋租赁管理系统 v2.0\n\n"
             "功能：\n"
-            "  • 房源管理（添加/编辑/删除/搜索）\n"
-            "  • 租客管理（添加/编辑/删除/搜索）\n"
-            "  • 合同管理（新建/解约/查看，支持月付/季付/半年付/年付）\n"
-            "  • 缴费管理（记录/编辑/删除，自动提醒）\n"
-            "  • 数据统计仪表盘\n"
-            "  • 下次缴费智能提醒\n"
-            "  • 数据库备份\n\n"
+            "  - 房源管理（添加/编辑/删除/搜索）\n"
+            "  - 租客管理（添加/编辑/删除/搜索）\n"
+            "  - 合同管理（新建/解约/查看，支持月付/季付/半年付/年付）\n"
+            "  - 缴费管理（记录/编辑/删除，自动提醒）\n"
+            "  - 数据统计仪表盘\n"
+            "  - 下次缴费智能提醒\n"
+            "  - 数据库备份\n\n"
             "技术栈：Python + Tkinter + SQLite"
         )
 
@@ -1074,7 +1069,7 @@ class PropertyDialog:
             ("类型", "property_type", 3),
             ("卧室数", "bedrooms", 4),
             ("卫生间数", "bathrooms", 5),
-            ("面积 (m²)", "area", 6),
+            ("面积 (m)", "area", 6),
             ("月租金 *", "monthly_rent", 7),
             ("押金", "deposit", 8),
             ("状态", "status", 9),
@@ -1338,7 +1333,7 @@ class LeaseDialog:
                              highlightthickness=1, padx=10, pady=8)
         freq_frame.grid(row=8, column=0, columnspan=2, sticky=tk.W+tk.E, pady=8)
 
-        tk.Label(freq_frame, text="💰 缴费周期", font=("Microsoft YaHei", 11, "bold"),
+        tk.Label(freq_frame, text="缴费周期", font=("Microsoft YaHei", 11, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(0, 5))
 
         self.freq_var = tk.StringVar(value="月付")
@@ -1357,7 +1352,7 @@ class LeaseDialog:
 
         # 每期金额预览
         self.freq_amount_label = tk.Label(
-            freq_frame, text="每期缴费金额: ¥0.00",
+            freq_frame, text="每期缴费金额: 0.00",
             font=("Microsoft YaHei", 10),
             bg=Theme.CARD, fg=Theme.SUCCESS
         )

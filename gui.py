@@ -1,10 +1,9 @@
-"""房屋租赁管理系统 - 图形界面（完整中文版，含备份/统计/导入导出）"""
+"""房屋租赁管理系统 - 图形界面（完整中文版）"""
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime, date
 from typing import Optional, List
 import os
-import csv
 
 from models import Property, Tenant, Lease, Payment, PAYMENT_FREQUENCIES, FREQUENCY_MONTHS, HOUSE_TYPES
 from database import Database
@@ -14,7 +13,6 @@ from utils import (
 )
 
 
-# ==================== 颜色主题 ====================
 class Theme:
     PRIMARY = "#2C3E50"
     PRIMARY_LIGHT = "#34495E"
@@ -38,85 +36,6 @@ class Theme:
 
 
 class RentalManagementApp:
-    """房屋租赁管理系统主窗口"""
-
-    def __init__(self, root: tk.Tk):
-        self.root = root
-        self.root.title("房屋租赁管理系统")
-        self.root.geometry("1280x800")
-        self.root.minsize(1000, 650)
-        self.root.configure(bg=Theme.BG)
-        self.db = Database()
-
-        self._setup_styles()
-        self._create_menu()          # 菜单栏（含备份/统计/导入导出）
-        self._create_header()
-        self._create_notebook()
-        self._create_status_bar()
-
-        self.refresh_all()
-
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-        self._center_window()
-
-    def _setup_styles(self):
-        style = ttk.Style()
-        style.theme_use("clam")
-        style.configure(".", background=Theme.BG, font=("Microsoft YaHei", 10))
-
-        style.configure("Treeview",
-            background=Theme.CARD, foreground=Theme.TEXT, rowheight=30,
-            fieldbackground=Theme.CARD, font=("Microsoft YaHei", 10), borderwidth=0)
-        style.map("Treeview",
-            background=[("selected", Theme.ACCENT)],
-            foreground=[("selected", "white")])
-        style.configure("Treeview.Heading",
-            background=Theme.HEADER_BG, foreground=Theme.HEADER_TEXT,
-            font=("Microsoft YaHei", 10, "bold"), borderwidth=0, relief="flat")
-        style.map("Treeview.Heading",
-            background=[("active", Theme.PR明白了，我直接把完整的 `gui.py` 给你，所有修改点都已经整合进去，覆盖替换即可。
-
-```python
-"""房屋租赁管理系统 - 图形界面（完整中文版，含备份/导入导出/统计功能）"""
-import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-from datetime import datetime, date
-from typing import Optional, List
-import os
-
-from models import Property, Tenant, Lease, Payment, PAYMENT_FREQUENCIES, FREQUENCY_MONTHS, HOUSE_TYPES
-from database import Database
-from utils import (
-    validate_phone, validate_email, validate_amount, validate_date,
-    format_currency, get_status_color, get_today_str
-)
-
-
-# ==================== 颜色主题 ====================
-class Theme:
-    PRIMARY = "#2C3E50"
-    PRIMARY_LIGHT = "#34495E"
-    ACCENT = "#3498DB"
-    ACCENT_LIGHT = "#5DADE2"
-    SUCCESS = "#27AE60"
-    SUCCESS_LIGHT = "#2ECC71"
-    WARNING = "#F39C12"
-    WARNING_LIGHT = "#F1C40F"
-    DANGER = "#E74C3C"
-    DANGER_LIGHT = "#EC7063"
-    BG = "#F0F2F5"
-    BG_DARK = "#E8ECF0"
-    CARD = "#FFFFFF"
-    TEXT = "#2C3E50"
-    TEXT_SECONDARY = "#7F8C8D"
-    BORDER = "#D5D8DC"
-    HEADER_BG = "#2C3E50"
-    HEADER_TEXT = "#FFFFFF"
-    ROW_ALT = "#F8F9FA"
-
-
-class RentalManagementApp:
-    """房屋租赁管理系统主窗口"""
 
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -185,10 +104,8 @@ class RentalManagementApp:
         style.configure("TSpinbox", fieldbackground=Theme.CARD, foreground=Theme.TEXT)
 
     def _create_menu(self):
-        """创建菜单栏"""
         menubar = tk.Menu(self.root)
 
-        # 文件菜单
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="备份数据库", command=self._backup_db)
         file_menu.add_command(label="恢复数据库", command=self._restore_db)
@@ -201,7 +118,6 @@ class RentalManagementApp:
         file_menu.add_command(label="退出", command=self._on_close)
         menubar.add_cascade(label="文件", menu=file_menu)
 
-        # 统计菜单
         stats_menu = tk.Menu(menubar, tearoff=0)
         stats_menu.add_command(label="按楼栋统计", command=self._show_building_stats)
         stats_menu.add_command(label="自定义时间统计", command=self._show_custom_time_stats)
@@ -209,12 +125,10 @@ class RentalManagementApp:
         stats_menu.add_command(label="月度收入报表", command=self._show_monthly_report)
         menubar.add_cascade(label="统计", menu=stats_menu)
 
-        # 视图菜单
         view_menu = tk.Menu(menubar, tearoff=0)
         view_menu.add_command(label="刷新所有数据", command=self.refresh_all)
         menubar.add_cascade(label="视图", menu=view_menu)
 
-        # 帮助菜单
         help_menu = tk.Menu(menubar, tearoff=0)
         help_menu.add_command(label="关于", command=self._show_about)
         menubar.add_cascade(label="帮助", menu=help_menu)
@@ -269,8 +183,6 @@ class RentalManagementApp:
         sh = self.root.winfo_screenheight()
         self.root.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
 
-    # ==================== 创建卡片工具 ====================
-
     def _create_card(self, parent, title, value, color=Theme.ACCENT, **kwargs):
         card = tk.Frame(parent, bg=Theme.CARD, highlightbackground=Theme.BORDER,
                        highlightthickness=1, **kwargs)
@@ -297,8 +209,6 @@ class RentalManagementApp:
         if hasattr(card, '_title_label'):
             card._title_label.config(text=title)
 
-    # ==================== 仪表盘 ====================
-
     def _create_dashboard_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
         self.notebook.add(frame, text="仪表盘")
@@ -317,18 +227,20 @@ class RentalManagementApp:
             ("rented_properties", "已出租", "0", Theme.PRIMARY),
             ("total_tenants", "租客总数", "0", Theme.ACCENT),
             ("active_leases", "生效合同", "0", Theme.SUCCESS),
-            ("monthly_income", "本月收入", "¥0.00", Theme.WARNING),
-            ("total_income", "总收入", "¥0.00", Theme.DANGER),
+            ("monthly_income", "本月收入", "0.00", Theme.WARNING),
+            ("total_income", "总收入", "0.00", Theme.DANGER),
             ("overdue_payments", "逾期缴费", "0", Theme.DANGER),
         ]
 
         for i, (key, title, init_val, color) in enumerate(stats_info):
-            card = self._create_card(cards_frame, title, init_val, color, width=150, height=95)
+            if key in ("monthly_income", "total_income"):
+                card = self._create_card(cards_frame, title, "0.00", color, width=150, height=95)
+            else:
+                card = self._create_card(cards_frame, title, init_val, color, width=150, height=95)
             card.grid(row=i//4, column=i%4, padx=5, pady=5, sticky="nsew")
             cards_frame.columnconfigure(i%4, weight=1)
             self._stat_cards[key] = card
 
-        # 缴费提醒
         tk.Label(frame, text="缴费提醒",
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.BG, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(20, 5), padx=15)
@@ -337,7 +249,6 @@ class RentalManagementApp:
         self.reminder_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
         self._refresh_reminders()
 
-        # 快捷操作
         tk.Label(frame, text="快捷操作",
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.BG, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(15, 5), padx=15)
@@ -373,7 +284,7 @@ class RentalManagementApp:
                     status_text = f"已逾期 {-days} 天"
                     color = Theme.DANGER
                 elif days == 0:
-                    status_text = "今天到期！"
+                    status_text = "今天到期"
                     color = Theme.WARNING
                 elif days <= 3:
                     status_text = f"还剩 {days} 天"
@@ -439,8 +350,6 @@ class RentalManagementApp:
                 self._update_card(self._stat_cards[key], title, value, color)
         self._refresh_reminders()
         self.set_status("仪表盘数据已刷新")
-
-    # ==================== 房源管理 ====================
 
     def _create_property_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
@@ -547,19 +456,16 @@ class RentalManagementApp:
             messagebox.showwarning("提示", "请先选择一个房源")
             return
         values = self.prop_tree.item(selected[0])["values"]
-        if messagebox.askyesno("确认删除", f"确定要删除房源「{values[1]}」吗？"):
+        if messagebox.askyesno("确认删除", f"确定要删除房源 [{values[1]}] 吗?"):
             self.db.delete_property(values[0])
             self._refresh_property_list()
             self._refresh_dashboard()
             self.set_status("房源已删除")
 
-    # ==================== 合同与租客管理（合并） ====================
-
     def _create_contract_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
         self.notebook.add(frame, text="合同与租客管理")
 
-        # 上部：合同列表
         tk.Label(frame, text="合同管理",
                 font=("Microsoft YaHei", 13, "bold"),
                 bg=Theme.BG, fg=Theme.PRIMARY).pack(anchor=tk.W, padx=10, pady=(10, 0))
@@ -617,10 +523,8 @@ class RentalManagementApp:
         self.lease_tree.tag_configure("odd", background=Theme.ROW_ALT)
         self.lease_tree.tag_configure("even", background=Theme.CARD)
 
-        # 分隔线
         ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=10, pady=5)
 
-        # 下部：租客管理
         tk.Label(frame, text="租客管理",
                 font=("Microsoft YaHei", 13, "bold"),
                 bg=Theme.BG, fg=Theme.PRIMARY).pack(anchor=tk.W, padx=10, pady=(5, 0))
@@ -700,11 +604,11 @@ class RentalManagementApp:
         properties = self.db.get_all_properties()
         available_props = [p for p in properties if p.status == "待出租"]
         if not available_props:
-            messagebox.showwarning("提示", "没有可用的房源（待出租状态），请先添加房源")
+            messagebox.showwarning("提示", "没有可用的房源，请先添加房源")
             return
         tenants = self.db.get_all_tenants()
         if not tenants:
-            if messagebox.askyesno("提示", "没有租客信息，现在添加一个？"):
+            if messagebox.askyesno("提示", "没有租客信息，现在添加一个?"):
                 self._show_add_tenant()
                 tenants = self.db.get_all_tenants()
                 if not tenants:
@@ -738,9 +642,7 @@ class RentalManagementApp:
         if values[8] != "生效中":
             messagebox.showinfo("提示", "只有生效中的合同可以解约")
             return
-        if messagebox.askyesno("确认解约",
-                               f"确定要解约「{values[1]} - {values[2]}」的合同？
-房源将自动变为待出租状态。"):
+        if messagebox.askyesno("确认解约", f"确定要解约 [{values[1]} - {values[2]}] 的合同吗?"):
             self.db.terminate_lease(values[0])
             self._refresh_lease_list()
             self._refresh_property_list()
@@ -775,13 +677,11 @@ class RentalManagementApp:
             messagebox.showwarning("提示", "请先选择一个租客")
             return
         values = self.tenant_tree.item(selected[0])["values"]
-        if messagebox.askyesno("确认删除", f"确定要删除租客「{values[1]}」吗？"):
+        if messagebox.askyesno("确认删除", f"确定要删除租客 [{values[1]}] 吗?"):
             self.db.delete_tenant(values[0])
             self._refresh_tenant_list()
             self._refresh_dashboard()
             self.set_status("租客已删除")
-
-    # ==================== 缴费管理 ====================
 
     def _create_payment_tab(self):
         frame = tk.Frame(self.notebook, bg=Theme.BG)
@@ -895,13 +795,11 @@ class RentalManagementApp:
             messagebox.showwarning("提示", "请先选择一条缴费记录")
             return
         values = self.pay_tree.item(selected[0])["values"]
-        if messagebox.askyesno("确认删除", f"确定要删除金额为 {values[3]} 的缴费记录吗？"):
+        if messagebox.askyesno("确认删除", f"确定要删除金额为 {values[3]} 的缴费记录吗?"):
             self.db.delete_payment(values[0])
             self._refresh_payment_list()
             self._refresh_dashboard()
             self.set_status("缴费记录已删除")
-
-    # ==================== 工具方法 ====================
 
     def refresh_all(self):
         self._refresh_dashboard()
@@ -911,20 +809,15 @@ class RentalManagementApp:
         self._refresh_payment_list()
         self.set_status("所有数据已刷新")
 
-    # ==================== 新增：备份与恢复 ====================
-
     def _backup_db(self):
-        """备份数据库"""
         try:
             path = self.db.backup_database()
-            messagebox.showinfo("备份成功", f"数据库已备份到:
-{path}")
+            messagebox.showinfo("备份成功", f"数据库已备份到: {path}")
             self.set_status("数据库备份完成")
         except Exception as e:
             messagebox.showerror("备份失败", str(e))
 
     def _restore_db(self):
-        """从备份恢复数据库"""
         backups = self.db.list_backups()
         if not backups:
             messagebox.showinfo("提示", "没有找到备份文件")
@@ -937,12 +830,11 @@ class RentalManagementApp:
         dialog.grab_set()
         dialog.configure(bg=Theme.CARD)
 
-        tk.Label(dialog, text="选择要恢复的备份：",
+        tk.Label(dialog, text="选择要恢复的备份:",
                 font=("Microsoft YaHei", 12, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, padx=15, pady=(10, 5))
 
-        frame = tk.Frame(dialog, bg=Theme.CARD, highlightbackground=Theme.BORDER,
-                        highlightthickness=1)
+        frame = tk.Frame(dialog, bg=Theme.CARD, highlightbackground=Theme.BORDER, highlightthickness=1)
         frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
 
         columns = ("序号", "备份时间", "大小(KB)")
@@ -968,10 +860,7 @@ class RentalManagementApp:
                 return
             idx = tree.index(sel[0])
             path, mtime, size = backups[idx]
-            if messagebox.askyesno("确认恢复",
-                                   f"恢复备份将覆盖当前所有数据，建议先备份当前数据。
-
-确定要恢复 {mtime} 的备份吗？"):
+            if messagebox.askyesno("确认恢复", "恢复备份将覆盖当前所有数据，建议先备份当前数据。确定要恢复吗?"):
                 self.db.restore_database(path)
                 self.refresh_all()
                 dialog.destroy()
@@ -986,66 +875,46 @@ class RentalManagementApp:
                    style="Flat.TButton").pack(side=tk.LEFT, padx=5)
 
     def _export_csv(self):
-        """导出数据到 CSV"""
-        import csv
         from tkinter import filedialog
-
-        table = simpledialog.askstring("导出数据", "请输入要导出的表名：
-(properties / tenants / leases / payments)",
-                                       initialvalue="payments")
+        table = simpledialog.askstring("导出数据", "请输入要导出的表名:\n(properties / tenants / leases / payments)", initialvalue="payments")
         if not table:
             return
         if table not in ("properties", "tenants", "leases", "payments"):
-            messagebox.showwarning("提示", "表名无效，请输入: properties / tenants / leases / payments")
+            messagebox.showwarning("提示", "表名无效")
             return
-
         filepath = filedialog.asksaveasfilename(
             title="保存为 CSV 文件",
             defaultextension=".csv",
-            filetypes=[("CSV 文件", "*.csv"), ("所有文件", "*.*")],
+            filetypes=[("CSV 文件", "*.csv")],
             initialfile=f"{table}_{datetime.now().strftime('%Y%m%d')}.csv"
         )
         if not filepath:
             return
-
         if self.db.export_to_csv(table, filepath):
-            messagebox.showinfo("导出成功", f"数据已导出到:
-{filepath}")
+            messagebox.showinfo("导出成功", f"数据已导出到: {filepath}")
             self.set_status(f"{table} 数据已导出")
         else:
             messagebox.showerror("导出失败", "导出失败，可能表中没有数据")
 
     def _import_csv(self):
-        """从 CSV 导入数据"""
         from tkinter import filedialog
-        import csv
         import os.path
-
-        filepath = filedialog.askopenfilename(
-            title="选择 CSV 文件",
-            filetypes=[("CSV 文件", "*.csv"), ("所有文件", "*.*")]
-        )
+        filepath = filedialog.askopenfilename(title="选择 CSV 文件", filetypes=[("CSV 文件", "*.csv")])
         if not filepath:
             return
-
         filename = os.path.basename(filepath).lower()
         table = ""
         for t in ("properties", "tenants", "leases", "payments"):
             if t in filename:
                 table = t
                 break
-
         if not table:
-            table = simpledialog.askstring("导入数据",
-                                           "未能从文件名识别表名，请手动输入：
-(properties / tenants / leases / payments)")
+            table = simpledialog.askstring("导入数据", "未能从文件名识别表名，请手动输入:\n(properties / tenants / leases / payments)")
             if not table:
                 return
-
         if table not in ("properties", "tenants", "leases", "payments"):
             messagebox.showwarning("提示", "表名无效")
             return
-
         count = self.db.import_from_csv(table, filepath)
         if count > 0:
             self.refresh_all()
@@ -1055,7 +924,6 @@ class RentalManagementApp:
             messagebox.showerror("导入失败", "导入失败，请检查文件格式")
 
     def _open_data_dir(self):
-        """打开数据目录"""
         import subprocess
         data_dir = self.db.get_data_dir()
         try:
@@ -1064,13 +932,9 @@ class RentalManagementApp:
             else:
                 subprocess.Popen(['xdg-open', data_dir])
         except Exception:
-            messagebox.showinfo("数据目录", f"数据目录:
-{data_dir}")
-
-    # ==================== 新增：统计功能 ====================
+            messagebox.showinfo("数据目录", f"数据目录: {data_dir}")
 
     def _show_building_stats(self):
-        """按楼栋统计"""
         stats = self.db.get_building_statistics()
         if not stats:
             messagebox.showinfo("提示", "没有房源数据可供统计")
@@ -1087,8 +951,7 @@ class RentalManagementApp:
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, padx=15, pady=(10, 5))
 
-        frame = tk.Frame(dialog, bg=Theme.CARD, highlightbackground=Theme.BORDER,
-                        highlightthickness=1)
+        frame = tk.Frame(dialog, bg=Theme.CARD, highlightbackground=Theme.BORDER, highlightthickness=1)
         frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
 
         columns = ("楼栋", "总房源", "已出租", "待出租", "月租金总额")
@@ -1113,10 +976,7 @@ class RentalManagementApp:
             total_rented += s["rented_count"]
             total_rent += s["total_rent"]
 
-        tree.insert("", tk.END, values=(
-            "合计", total_props, total_rented, total_props - total_rented,
-            format_currency(total_rent)
-        ), tags=("total",))
+        tree.insert("", tk.END, values=("合计", total_props, total_rented, total_props - total_rented, format_currency(total_rent)), tags=("total",))
         tree.tag_configure("total", background="#E8F0FE")
 
         scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=tree.yview)
@@ -1124,11 +984,9 @@ class RentalManagementApp:
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        ttk.Button(dialog, text="关闭", command=dialog.destroy,
-                   style="Flat.TButton").pack(pady=10)
+        ttk.Button(dialog, text="关闭", command=dialog.destroy, style="Flat.TButton").pack(pady=10)
 
     def _show_custom_time_stats(self):
-        """自定义时间统计"""
         dialog = tk.Toplevel(self.root)
         dialog.title("自定义时间统计")
         dialog.geometry("500x450")
@@ -1143,15 +1001,13 @@ class RentalManagementApp:
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(0, 10))
 
-        tk.Label(main_frame, text="开始日期 (YYYY-MM-DD)：",
-                font=("Microsoft YaHei", 10),
+        tk.Label(main_frame, text="开始日期 (YYYY-MM-DD):", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).pack(anchor=tk.W, pady=3)
         start_entry = ttk.Entry(main_frame, width=30)
         start_entry.pack(anchor=tk.W, pady=3)
         start_entry.insert(0, datetime.now().strftime("%Y-%m-01"))
 
-        tk.Label(main_frame, text="结束日期 (YYYY-MM-DD)：",
-                font=("Microsoft YaHei", 10),
+        tk.Label(main_frame, text="结束日期 (YYYY-MM-DD):", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).pack(anchor=tk.W, pady=3)
         end_entry = ttk.Entry(main_frame, width=30)
         end_entry.pack(anchor=tk.W, pady=3)
@@ -1163,11 +1019,11 @@ class RentalManagementApp:
 
         result_vars = {}
         labels = [
-            ("total_income", "时间段内收款总额："),
-            ("payment_count", "收款笔数："),
-            ("overdue_count", "逾期笔数："),
-            ("new_leases", "新增合同数："),
-            ("new_properties", "新增房源数："),
+            ("total_income", "时间段内收款总额:"),
+            ("payment_count", "收款笔数:"),
+            ("overdue_count", "逾期笔数:"),
+            ("new_leases", "新增合同数:"),
+            ("new_properties", "新增房源数:"),
         ]
 
         for key, label_text in labels:
@@ -1183,13 +1039,11 @@ class RentalManagementApp:
                     font=("Microsoft YaHei", 10),
                     bg=Theme.CARD, fg=Theme.TEXT).pack(side=tk.LEFT)
 
-        # 各类型收入
         type_frame = tk.Frame(result_frame, bg=Theme.CARD)
         type_frame.pack(fill=tk.X, pady=5)
-        tk.Label(type_frame, text="各类型收入明细：",
+        tk.Label(type_frame, text="各类型收入明细:",
                 font=("Microsoft YaHei", 10, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W)
-        self._type_vars = {}
 
         def on_query():
             start = start_entry.get().strip()
@@ -1206,14 +1060,13 @@ class RentalManagementApp:
             result_vars["overdue_count"].set(str(stats["overdue_count"]))
             result_vars["new_leases"].set(str(stats["new_leases"]))
             result_vars["new_properties"].set(str(stats["new_properties"]))
-
             for w in type_frame.winfo_children():
                 if w != type_frame.winfo_children()[0]:
                     w.destroy()
             for ptype, pamount in stats["income_by_type"].items():
                 row = tk.Frame(type_frame, bg=Theme.CARD)
                 row.pack(fill=tk.X, pady=1)
-                tk.Label(row, text=f"  {ptype}：",
+                tk.Label(row, text=f"  {ptype}:",
                         font=("Microsoft YaHei", 9),
                         bg=Theme.CARD, fg=Theme.TEXT).pack(side=tk.LEFT, padx=(10, 0))
                 tk.Label(row, text=format_currency(pamount),
@@ -1228,7 +1081,6 @@ class RentalManagementApp:
                    style="Flat.TButton").pack(side=tk.LEFT, padx=5)
 
     def _show_monthly_report(self):
-        """月度收入报表"""
         dialog = tk.Toplevel(self.root)
         dialog.title("月度收入报表")
         dialog.geometry("550x400")
@@ -1248,8 +1100,7 @@ class RentalManagementApp:
                     font=("Microsoft YaHei", 11),
                     bg=Theme.CARD, fg=Theme.TEXT_SECONDARY).pack(expand=True)
         else:
-            frame = tk.Frame(dialog, bg=Theme.CARD, highlightbackground=Theme.BORDER,
-                            highlightthickness=1)
+            frame = tk.Frame(dialog, bg=Theme.CARD, highlightbackground=Theme.BORDER, highlightthickness=1)
             frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
 
             columns = ("月份", "收入金额")
@@ -1264,8 +1115,7 @@ class RentalManagementApp:
                 tree.insert("", tk.END, values=(month, format_currency(amount)))
                 total += amount
 
-            tree.insert("", tk.END, values=(f"{year}年 合计", format_currency(total)),
-                       tags=("total",))
+            tree.insert("", tk.END, values=(f"{year}年 合计", format_currency(total)), tags=("total",))
             tree.tag_configure("total", background="#E8F0FE")
 
             scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=tree.yview)
@@ -1275,56 +1125,26 @@ class RentalManagementApp:
 
             summary_frame = tk.Frame(dialog, bg=Theme.CARD, padx=15, pady=8)
             summary_frame.pack(fill=tk.X)
-            tk.Label(summary_frame, text=f"{year}年总收入：{format_currency(total)}",
+            tk.Label(summary_frame, text=f"{year}年总收入: {format_currency(total)}",
                     font=("Microsoft YaHei", 12, "bold"),
                     bg=Theme.CARD, fg=Theme.SUCCESS).pack(anchor=tk.W)
 
-        ttk.Button(dialog, text="关闭", command=dialog.destroy,
-                   style="Flat.TButton").pack(pady=10)
+        ttk.Button(dialog, text="关闭", command=dialog.destroy, style="Flat.TButton").pack(pady=10)
 
     def _show_about(self):
-        messagebox.showinfo("关于",
-            "房屋租赁管理系统 v2.0
-
-"
-            "功能：
-"
-            "  - 房源管理（小区名称、栋/单元/号、户型）
-"
-            "  - 合同与租客管理（合并管理）
-"
-            "  - 缴费记录（自动生成下次缴费时间）
-"
-            "  - 缴费周期：月付/季付/半年付/年付
-"
-            "  - 数据仪表盘（含缴费提醒）
-"
-            "  - 数据库备份与恢复
-"
-            "  - CSV 导入导出
-"
-            "  - 按楼栋统计 / 自定义时间统计 / 月度收入报表
-"
-            "  - 数据库备份
-
-"
-            "技术栈：Python + Tkinter + SQLite")
+        messagebox.showinfo("关于", "房屋租赁管理系统 v2.0\n\n功能:\n- 房源管理 (小区名称/栋单元号/户型)\n- 合同与租客管理\n- 缴费记录 (自动生成下次缴费时间)\n- 缴费周期: 月付/季付/半年付/年付\n- 数据仪表盘 (含缴费提醒)\n- 数据库备份与恢复\n- CSV 导入导出\n- 按楼栋统计/自定义时间统计\n\n技术栈: Python + Tkinter + SQLite")
 
     def _on_close(self):
-        if messagebox.askokcancel("退出", "确定要退出系统吗？"):
+        if messagebox.askokcancel("退出", "确定要退出系统吗?"):
             self.db.close()
             self.root.destroy()
 
 
-# ==================== 对话框类 ====================
-
 class PropertyDialog:
-    """房源添加/编辑对话框"""
 
     def __init__(self, parent, title: str, prop: Optional[Property] = None):
         self.result: Optional[Property] = None
         self.prop = prop or Property()
-
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
         self.dialog.geometry("520x520")
@@ -1332,7 +1152,6 @@ class PropertyDialog:
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.CARD)
-
         self._create_widgets()
         self._load_data()
         parent.wait_window(self.dialog)
@@ -1340,24 +1159,21 @@ class PropertyDialog:
     def _create_widgets(self):
         main_frame = tk.Frame(self.dialog, bg=Theme.CARD, padx=20, pady=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
-
         tk.Label(main_frame, text="房源信息",
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).grid(
             row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-
         fields = [
             ("小区名称 *", "community_name", 1),
             ("地址 *", "address", 2),
             ("栋/单元/号", "building_unit_room", 3),
             ("类型", "property_type", 4),
             ("户型", "house_type", 5),
-            ("面积 (m²)", "area", 6),
+            ("面积 (m2)", "area", 6),
             ("月租金 *", "monthly_rent", 7),
             ("押金", "deposit", 8),
             ("状态", "status", 9),
         ]
-
         self.entries = {}
         for label, key, row in fields:
             tk.Label(main_frame, text=label,
@@ -1376,13 +1192,11 @@ class PropertyDialog:
                 entry = ttk.Entry(main_frame, width=35)
                 entry.grid(row=row, column=1, sticky=tk.W, pady=4)
             self.entries[key] = entry
-
         tk.Label(main_frame, text="描述",
                 font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=10, column=0, sticky=tk.W, pady=4)
         self.desc_text = tk.Text(main_frame, height=3, width=38, font=("Microsoft YaHei", 10))
         self.desc_text.grid(row=10, column=1, sticky=tk.W, pady=4)
-
         btn_frame = tk.Frame(main_frame, bg=Theme.CARD)
         btn_frame.grid(row=11, column=0, columnspan=2, pady=(15, 0))
         ttk.Button(btn_frame, text="确定", command=self._confirm,
@@ -1410,7 +1224,6 @@ class PropertyDialog:
                 data[key] = entry.get()
             else:
                 data[key] = entry.get().strip()
-
         if not data["community_name"]:
             messagebox.showwarning("验证失败", "小区名称不能为空")
             return
@@ -1420,7 +1233,6 @@ class PropertyDialog:
         if not data["monthly_rent"] or not validate_amount(data["monthly_rent"]):
             messagebox.showwarning("验证失败", "请输入有效的月租金")
             return
-
         self.result = Property(
             id=self.prop.id,
             community_name=data["community_name"],
@@ -1438,12 +1250,10 @@ class PropertyDialog:
 
 
 class TenantDialog:
-    """租客添加/编辑对话框"""
 
     def __init__(self, parent, title: str, tenant: Optional[Tenant] = None):
         self.result: Optional[Tenant] = None
         self.tenant = tenant or Tenant()
-
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
         self.dialog.geometry("480x420")
@@ -1451,7 +1261,6 @@ class TenantDialog:
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.CARD)
-
         self._create_widgets()
         self._load_data()
         parent.wait_window(self.dialog)
@@ -1517,13 +1326,11 @@ class TenantDialog:
 
 
 class LeaseDialog:
-    """合同新建对话框"""
 
     def __init__(self, parent, title: str, properties: List[Property], tenants: List[Tenant],
                  lease: Optional[Lease] = None):
         self.result: Optional[Lease] = None
         self.lease = lease or Lease()
-
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
         self.dialog.geometry("520x520")
@@ -1531,7 +1338,6 @@ class LeaseDialog:
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.CARD)
-
         self.properties = properties
         self.tenants = tenants
         self._create_widgets()
@@ -1541,59 +1347,48 @@ class LeaseDialog:
     def _create_widgets(self):
         main_frame = tk.Frame(self.dialog, bg=Theme.CARD, padx=20, pady=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
-
         tk.Label(main_frame, text="合同信息",
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).grid(
             row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-
         tk.Label(main_frame, text="房源 *", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=1, column=0, sticky=tk.W, pady=4)
         self.prop_combo = ttk.Combobox(main_frame, width=35, state="readonly")
         self.prop_combo.grid(row=1, column=1, sticky=tk.W, pady=4)
         self.prop_names = [f"{p.id} - {p.community_name} ({p.address})" for p in self.properties]
         self.prop_combo["values"] = self.prop_names
-
         tk.Label(main_frame, text="租客 *", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=2, column=0, sticky=tk.W, pady=4)
         self.tenant_combo = ttk.Combobox(main_frame, width=35, state="readonly")
         self.tenant_combo.grid(row=2, column=1, sticky=tk.W, pady=4)
         self.tenant_names = [f"{t.id} - {t.name} ({t.phone})" for t in self.tenants]
         self.tenant_combo["values"] = self.tenant_names
-
         tk.Label(main_frame, text="起始日期 * (YYYY-MM-DD)", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=3, column=0, sticky=tk.W, pady=4)
         self.start_entry = ttk.Entry(main_frame, width=35)
         self.start_entry.grid(row=3, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="结束日期 * (YYYY-MM-DD)", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=4, column=0, sticky=tk.W, pady=4)
         self.end_entry = ttk.Entry(main_frame, width=35)
         self.end_entry.grid(row=4, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="月租金 *", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=5, column=0, sticky=tk.W, pady=4)
         self.rent_entry = ttk.Entry(main_frame, width=35)
         self.rent_entry.grid(row=5, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="押金金额", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=6, column=0, sticky=tk.W, pady=4)
         self.deposit_entry = ttk.Entry(main_frame, width=35)
         self.deposit_entry.grid(row=6, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="每月缴费日 (1-28)", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=7, column=0, sticky=tk.W, pady=4)
         self.pay_day_spin = ttk.Spinbox(main_frame, from_=1, to=28, width=32)
         self.pay_day_spin.grid(row=7, column=1, sticky=tk.W, pady=4)
-
         freq_frame = tk.Frame(main_frame, bg=Theme.CARD, highlightbackground=Theme.ACCENT,
                              highlightthickness=1, padx=10, pady=8)
         freq_frame.grid(row=8, column=0, columnspan=2, sticky=tk.W+tk.E, pady=8)
-
         tk.Label(freq_frame, text="缴费周期",
                 font=("Microsoft YaHei", 11, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(0, 5))
-
         self.freq_var = tk.StringVar(value="月付")
         freq_row = tk.Frame(freq_frame, bg=Theme.CARD)
         freq_row.pack(fill=tk.X)
@@ -1605,18 +1400,15 @@ class LeaseDialog:
                                activebackground=Theme.CARD,
                                command=self._on_freq_change)
             rb.pack(side=tk.LEFT, padx=8)
-
-        self.freq_amount_label = tk.Label(freq_frame, text="每期缴费金额: ¥0.00",
+        self.freq_amount_label = tk.Label(freq_frame, text="每期缴费金额: 0.00",
                                          font=("Microsoft YaHei", 10),
                                          bg=Theme.CARD, fg=Theme.SUCCESS)
         self.freq_amount_label.pack(anchor=tk.W, pady=(3, 0))
         self.rent_entry.bind("<KeyRelease>", self._on_freq_change)
-
         tk.Label(main_frame, text="备注", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=9, column=0, sticky=tk.W, pady=4)
         self.notes_text = tk.Text(main_frame, height=3, width=38, font=("Microsoft YaHei", 10))
         self.notes_text.grid(row=9, column=1, sticky=tk.W, pady=4)
-
         btn_frame = tk.Frame(main_frame, bg=Theme.CARD)
         btn_frame.grid(row=10, column=0, columnspan=2, pady=(15, 0))
         ttk.Button(btn_frame, text="确定", command=self._confirm,
@@ -1630,7 +1422,7 @@ class LeaseDialog:
         months = freq_map.get(freq, 1)
         try:
             rent = float(self.rent_entry.get().strip() or 0)
-            self.freq_amount_label.config(text=f"每期缴费金额: {format_currency(rent * months)}（{freq}）")
+            self.freq_amount_label.config(text=f"每期缴费金额: {format_currency(rent * months)} ({freq})")
         except ValueError:
             pass
 
@@ -1665,11 +1457,9 @@ class LeaseDialog:
         if tenant_idx < 0:
             messagebox.showwarning("验证失败", "请选择租客")
             return
-
         start = self.start_entry.get().strip()
         end = self.end_entry.get().strip()
         rent = self.rent_entry.get().strip()
-
         if not validate_date(start):
             messagebox.showwarning("验证失败", "起始日期格式不正确 (YYYY-MM-DD)")
             return
@@ -1679,10 +1469,8 @@ class LeaseDialog:
         if not rent or not validate_amount(rent):
             messagebox.showwarning("验证失败", "请输入有效的月租金")
             return
-
         prop = self.properties[prop_idx]
         tenant = self.tenants[tenant_idx]
-
         self.result = Lease(
             id=self.lease.id, property_id=prop.id, tenant_id=tenant.id,
             property_name=prop.community_name, tenant_name=tenant.name,
@@ -1697,13 +1485,11 @@ class LeaseDialog:
 
 
 class PaymentDialog:
-    """缴费记录对话框（自动生成下次缴费时间）"""
 
     def __init__(self, parent, title: str, leases: List[Lease],
                  payment: Optional[Payment] = None):
         self.result: Optional[Payment] = None
         self.payment = payment or Payment()
-
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
         self.dialog.geometry("480x450")
@@ -1711,13 +1497,11 @@ class PaymentDialog:
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.CARD)
-
         self.leases = leases
         self.lease_next_dates = {}
         for l in leases:
             nd = l.get_next_payment_date()
             self.lease_next_dates[l.id] = nd or ""
-
         self._create_widgets()
         self._load_data()
         parent.wait_window(self.dialog)
@@ -1725,12 +1509,10 @@ class PaymentDialog:
     def _create_widgets(self):
         main_frame = tk.Frame(self.dialog, bg=Theme.CARD, padx=20, pady=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
-
         tk.Label(main_frame, text="缴费记录",
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).grid(
             row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
-
         tk.Label(main_frame, text="关联合同 *", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=1, column=0, sticky=tk.W, pady=4)
         self.lease_combo = ttk.Combobox(main_frame, width=35, state="readonly")
@@ -1738,56 +1520,46 @@ class PaymentDialog:
         self.lease_names = [f"{l.id} - {l.property_name} / {l.tenant_name}" for l in self.leases]
         self.lease_combo["values"] = self.lease_names
         self.lease_combo.bind("<<ComboboxSelected>>", self._on_lease_selected)
-
         tk.Label(main_frame, text="金额 *", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=2, column=0, sticky=tk.W, pady=4)
         self.amount_entry = ttk.Entry(main_frame, width=35)
         self.amount_entry.grid(row=2, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="缴费日期 * (YYYY-MM-DD)", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=3, column=0, sticky=tk.W, pady=4)
         self.date_entry = ttk.Entry(main_frame, width=35)
         self.date_entry.grid(row=3, column=1, sticky=tk.W, pady=4)
-
         next_frame = tk.Frame(main_frame, bg=Theme.CARD, highlightbackground=Theme.SUCCESS,
                              highlightthickness=1, padx=10, pady=6)
         next_frame.grid(row=4, column=0, columnspan=2, sticky=tk.W+tk.E, pady=6)
-
-        tk.Label(next_frame, text="下次缴费时间（自动生成）",
+        tk.Label(next_frame, text="下次缴费时间 (自动生成)",
                 font=("Microsoft YaHei", 10, "bold"),
                 bg=Theme.CARD, fg=Theme.SUCCESS).pack(anchor=tk.W)
-
         self.next_date_var = tk.StringVar(value="选择合同后自动生成")
         tk.Label(next_frame, textvariable=self.next_date_var,
                 font=("Microsoft YaHei", 11),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(3, 0))
-
         tk.Label(main_frame, text="缴费类型", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=5, column=0, sticky=tk.W, pady=4)
         self.type_combo = ttk.Combobox(main_frame,
             values=["租金", "押金", "水费", "电费", "燃气费", "物业费", "其他"],
             state="readonly", width=32)
         self.type_combo.grid(row=5, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="缴费方式", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=6, column=0, sticky=tk.W, pady=4)
         self.method_combo = ttk.Combobox(main_frame,
             values=["微信支付", "支付宝", "银行转账", "现金", "其他"],
             state="readonly", width=32)
         self.method_combo.grid(row=6, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="状态", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=7, column=0, sticky=tk.W, pady=4)
         self.status_combo = ttk.Combobox(main_frame,
             values=["已支付", "待支付", "已逾期"],
             state="readonly", width=32)
         self.status_combo.grid(row=7, column=1, sticky=tk.W, pady=4)
-
         tk.Label(main_frame, text="备注", font=("Microsoft YaHei", 10),
                 bg=Theme.CARD, fg=Theme.TEXT).grid(row=8, column=0, sticky=tk.W, pady=4)
         self.notes_text = tk.Text(main_frame, height=3, width=38, font=("Microsoft YaHei", 10))
         self.notes_text.grid(row=8, column=1, sticky=tk.W, pady=4)
-
         btn_frame = tk.Frame(main_frame, bg=Theme.CARD)
         btn_frame.grid(row=9, column=0, columnspan=2, pady=(15, 0))
         ttk.Button(btn_frame, text="确定", command=self._confirm,
@@ -1802,7 +1574,7 @@ class PaymentDialog:
             next_date = lease.get_next_payment_date()
             amount = lease.get_payment_amount()
             if next_date:
-                self.next_date_var.set(f"{next_date}  （金额: {format_currency(amount)}）")
+                self.next_date_var.set(f"{next_date} (金额: {format_currency(amount)})")
             else:
                 self.next_date_var.set("合同已到期或已结束")
             if not self.amount_entry.get().strip():
@@ -1840,10 +1612,8 @@ class PaymentDialog:
         if not validate_date(date_str):
             messagebox.showwarning("验证失败", "日期格式不正确 (YYYY-MM-DD)")
             return
-
         lease = self.leases[idx]
         next_date = lease.get_next_payment_date()
-
         self.result = Payment(
             id=self.payment.id, lease_id=lease.id,
             tenant_name=lease.tenant_name, property_name=lease.property_name,
@@ -1858,7 +1628,6 @@ class PaymentDialog:
 
 
 class LeaseDetailDialog:
-    """合同详情查看对话框"""
 
     def __init__(self, parent, lease: Lease):
         self.dialog = tk.Toplevel(parent)
@@ -1868,14 +1637,11 @@ class LeaseDetailDialog:
         self.dialog.transient(parent)
         self.dialog.grab_set()
         self.dialog.configure(bg=Theme.CARD)
-
         main_frame = tk.Frame(self.dialog, bg=Theme.CARD, padx=20, pady=15)
         main_frame.pack(fill=tk.BOTH, expand=True)
-
         tk.Label(main_frame, text="合同详情",
                 font=("Microsoft YaHei", 14, "bold"),
                 bg=Theme.CARD, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(0, 10))
-
         info = [
             ("合同编号", str(lease.id)),
             ("房源", lease.property_name),
@@ -1892,23 +1658,20 @@ class LeaseDetailDialog:
             ("状态", lease.status),
             ("备注", lease.notes or "无"),
         ]
-
         for i, (label, value) in enumerate(info):
             row_frame = tk.Frame(main_frame, bg=Theme.CARD)
             row_frame.pack(fill=tk.X, pady=1)
-            tk.Label(row_frame, text=f"{label}：",
+            tk.Label(row_frame, text=f"{label}:",
                     font=("Microsoft YaHei", 10, "bold"),
                     bg=Theme.CARD, fg=Theme.PRIMARY,
                     width=12, anchor=tk.W).pack(side=tk.LEFT)
             tk.Label(row_frame, text=value,
                     font=("Microsoft YaHei", 10),
                     bg=Theme.CARD, fg=Theme.TEXT).pack(side=tk.LEFT)
-
         ttk.Button(main_frame, text="关闭", command=self.dialog.destroy,
                    style="Flat.TButton").pack(pady=(15, 0))
 
 
-# ==================== 主入口 ====================
 if __name__ == "__main__":
     root = tk.Tk()
     app = RentalManagementApp(root)

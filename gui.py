@@ -203,7 +203,7 @@ class RentalManagementApp:
 
         self._stat_cards = {}
         stats_info = [
-            ("total_properties", "Total Properties", "0", Theme.ACCENT),
+            ("total_properties", "总房源", "0", Theme.ACCENT),
             ("available_properties", "Available", "0", Theme.SUCCESS),
             ("rented_properties", "Rented", "0", Theme.PRIMARY),
             ("total_tenants", "Total Tenants", "0", Theme.ACCENT),
@@ -314,7 +314,7 @@ class RentalManagementApp:
     def _refresh_dashboard(self):
         stats = self.db.get_statistics()
         mapping = {
-            "total_properties": ("Total Properties", str(stats.get("total_properties", 0)), Theme.ACCENT),
+            "total_properties": ("总房源", str(stats.get("total_properties", 0)), Theme.ACCENT),
             "available_properties": ("Available", str(stats.get("available_properties", 0)), Theme.SUCCESS),
             "rented_properties": ("Rented", str(stats.get("rented_properties", 0)), Theme.PRIMARY),
             "total_tenants": ("Total Tenants", str(stats.get("total_tenants", 0)), Theme.ACCENT),

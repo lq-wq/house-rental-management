@@ -1,13 +1,24 @@
 """房屋租赁管理系统 - 数据库操作层"""
 import sqlite3
 import os
+import shutil
 from datetime import datetime, date
 from typing import List, Optional, Tuple
 from models import Property, Tenant, Lease, Payment, PAYMENT_FREQUENCIES
 
 
-DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(DB_DIR, "rental_management.db")
+def get_data_dir() -> str:
+    """获取用户数据目录（保证数据持久化，不受 PyInstaller 临时目录影响）"""
+    if os.name == 'nt':  # Windows
+        base = os.environ.get('APPDATA', os.path.expanduser('~'))
+    else:
+        base = os.path.expanduser('~')
+    data_dir = os.path.join(base, '房屋租赁管理系统')
+    os.makedirs(data_dir, exist_ok=True)
+    return data_dir
+
+
+DB_PATH = os.path.join(get_data_dir(), "rental_management.db")
 
 
 class Database:
@@ -23,10 +34,24 @@ class Database:
         if self._initialized:
             return
         self._initialized = True
+        # 迁移旧数据库
+        self._migrate_old_db()
         self.conn = sqlite3.connect(DB_PATH)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
-        self._migrate()
+        self._migrate_schema()
+
+    def _migrate_old_db(self):
+        """将旧位置（程序目录）的数据库迁移到新位置（用户文档目录）"""
+        old_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rental_management.db")
+        if os.path.exists(old_path) and not os.path.exists(DB_PATH):
+            shutil.copy2(old_path, DB_PATH)
+            print(f"数据库已从 {old_path} 迁移到 {DB_PATH}")
+        # 也检查当前工作目录
+        cwd_path = os.path.join(os.getcwd(), "rental_management.db")
+        if os.path.exists(cwd_path) and not os.path.exists(DB_PATH):
+            shutil.copy2(cwd_path, DB_PATH)
+            print(f"数据库已从 {cwd_path} 迁移到 {DB_PATH}")
 
     def _create_tables(self):
         cursor = self.conn.cursor()
@@ -103,21 +128,9 @@ class Database:
         """)
         self.conn.commit()
 
-    def _migrate(self):
+    def _migrate_schema(self):
         """数据库迁移：兼容旧表结构"""
         cursor = self.conn.cursor()
-        # 检查旧表字段（name -> community_name）
-        try:
-            cursor.execute("SELECT community_name FROM properties LIMIT 1")
-        except sqlite3.OperationalError:
-            try:
-                # 旧表有 name 字段，迁移到新字段
-                cursor.execute("SELECT name FROM properties LIMIT 1")
-                cursor.execute("ALTER TABLE properties RENAME COLUMN name TO community_name")
-                self.conn.commit()
-                print("迁移: properties.name -> community_name")
-            except sqlite3.OperationalError:
-                pass
 
         # 检查 building_unit_room
         try:
@@ -125,7 +138,6 @@ class Database:
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE properties ADD COLUMN building_unit_room TEXT DEFAULT ''")
             self.conn.commit()
-            print("迁移: properties 添加 building_unit_room")
 
         # 检查 house_type
         try:
@@ -133,7 +145,6 @@ class Database:
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE properties ADD COLUMN house_type TEXT DEFAULT '一室一厅一卫'")
             self.conn.commit()
-            print("迁移: properties 添加 house_type")
 
         # 检查 payment_frequency
         try:
@@ -141,7 +152,6 @@ class Database:
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE leases ADD COLUMN payment_frequency TEXT DEFAULT '月付'")
             self.conn.commit()
-            print("迁移: leases 添加 payment_frequency")
 
         # 检查 next_payment_date
         try:
@@ -149,7 +159,17 @@ class Database:
         except sqlite3.OperationalError:
             cursor.execute("ALTER TABLE payments ADD COLUMN next_payment_date TEXT DEFAULT ''")
             self.conn.commit()
-            print("迁移: payments 添加 next_payment_date")
+
+        # 检查 community_name，兼容旧表 name 字段
+        try:
+            cursor.execute("SELECT community_name FROM properties LIMIT 1")
+        except sqlite3.OperationalError:
+            try:
+                cursor.execute("SELECT name FROM properties LIMIT 1")
+                cursor.execute("ALTER TABLE properties RENAME COLUMN name TO community_name")
+                self.conn.commit()
+            except sqlite3.OperationalError:
+                pass
 
     # ==================== 房源操作 ====================
 
@@ -459,6 +479,183 @@ class Database:
             ORDER BY month
         """, (f"{year}%",))
         return cursor.fetchall()
+
+    # ==================== 新增：按楼栋统计 ====================
+
+    def get_building_statistics(self) -> List[dict]:
+        """按楼栋（栋/单元/号 的第一段）统计房源和收入"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT 
+                CASE 
+                    WHEN building_unit_room != '' AND building_unit_room IS NOT NULL 
+                    THEN substr(building_unit_room, 1, instr(building_unit_room || '栋', '栋') - 1) || '栋'
+                    ELSE '未指定楼栋'
+                END as building,
+                COUNT(*) as total_properties,
+                SUM(CASE WHEN status='已出租' THEN 1 ELSE 0 END) as rented_count,
+                SUM(CASE WHEN status='待出租' THEN 1 ELSE 0 END) as available_count,
+                COALESCE(SUM(monthly_rent), 0) as total_rent
+            FROM properties
+            GROUP BY building
+            ORDER BY building
+        """)
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                "building": row[0],
+                "total_properties": row[1],
+                "rented_count": row[2],
+                "available_count": row[3],
+                "total_rent": row[4]
+            })
+        return results
+
+    # ==================== 新增：自定义时间统计 ====================
+
+    def get_custom_time_statistics(self, start_date: str, end_date: str) -> dict:
+        """按自定义时间范围统计"""
+        cursor = self.conn.cursor()
+        result = {}
+
+        # 时间段内收款总额
+        cursor.execute("""
+            SELECT COALESCE(SUM(amount), 0) 
+            FROM payments 
+            WHERE payment_date >= ? AND payment_date <= ? AND status='已支付'
+        """, (start_date, end_date))
+        result["total_income"] = cursor.fetchone()[0]
+
+        # 时间段内各类型收款
+        cursor.execute("""
+            SELECT payment_type, COALESCE(SUM(amount), 0)
+            FROM payments
+            WHERE payment_date >= ? AND payment_date <= ? AND status='已支付'
+            GROUP BY payment_type
+            ORDER BY payment_type
+        """, (start_date, end_date))
+        result["income_by_type"] = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # 时间段内收款笔数
+        cursor.execute("""
+            SELECT COUNT(*) FROM payments
+            WHERE payment_date >= ? AND payment_date <= ? AND status='已支付'
+        """, (start_date, end_date))
+        result["payment_count"] = cursor.fetchone()[0]
+
+        # 时间段内逾期笔数
+        cursor.execute("""
+            SELECT COUNT(*) FROM payments
+            WHERE payment_date >= ? AND payment_date <= ? AND status='已逾期'
+        """, (start_date, end_date))
+        result["overdue_count"] = cursor.fetchone()[0]
+
+        # 时间段内新增合同数
+        cursor.execute("""
+            SELECT COUNT(*) FROM leases
+            WHERE created_at >= ? AND created_at <= ?
+        """, (start_date, end_date))
+        result["new_leases"] = cursor.fetchone()[0]
+
+        # 时间段内新增房源数
+        cursor.execute("""
+            SELECT COUNT(*) FROM properties
+            WHERE created_at >= ? AND created_at <= ?
+        """, (start_date, end_date))
+        result["new_properties"] = cursor.fetchone()[0]
+
+        return result
+
+    # ==================== 新增：备份和导入导出 ====================
+
+    def backup_database(self) -> str:
+        """备份数据库到备份目录"""
+        backup_dir = os.path.join(get_data_dir(), "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"backup_{timestamp}.db")
+        shutil.copy2(DB_PATH, backup_path)
+        return backup_path
+
+    def list_backups(self) -> List[Tuple[str, str, float]]:
+        """列出所有备份文件"""
+        backup_dir = os.path.join(get_data_dir(), "backup")
+        if not os.path.exists(backup_dir):
+            return []
+        backups = []
+        for f in sorted(os.listdir(backup_dir), reverse=True):
+            if f.endswith(".db"):
+                fpath = os.path.join(backup_dir, f)
+                size = os.path.getsize(fpath) / 1024  # KB
+                mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
+                backups.append((fpath, mtime.strftime("%Y-%m-%d %H:%M:%S"), size))
+        return backups
+
+    def restore_database(self, backup_path: str) -> bool:
+        """从备份文件恢复数据库"""
+        if not os.path.exists(backup_path):
+            return False
+        # 先备份当前数据库
+        self.backup_database()
+        # 关闭当前连接
+        self.conn.close()
+        # 恢复
+        shutil.copy2(backup_path, DB_PATH)
+        # 重新连接
+        self.conn = sqlite3.connect(DB_PATH)
+        self.conn.row_factory = sqlite3.Row
+        return True
+
+    def export_to_csv(self, table: str, filepath: str) -> bool:
+        """导出指定表到 CSV 文件"""
+        import csv
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = cursor.fetchall()
+            if not rows:
+                return False
+            with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
+                writer = csv.writer(f)
+                writer.writerow([desc[0] for desc in cursor.description])
+                for row in rows:
+                    writer.writerow(row)
+            return True
+        except Exception as e:
+            print(f"导出失败: {e}")
+            return False
+
+    def import_from_csv(self, table: str, filepath: str) -> int:
+        """从 CSV 文件导入到指定表"""
+        import csv
+        try:
+            cursor = self.conn.cursor()
+            # 获取表列信息（排除 id 自增列）
+            cursor.execute(f"PRAGMA table_info({table})")
+            columns = [row[1] for row in cursor.fetchall() if row[1] != 'id']
+
+            count = 0
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    placeholders = ', '.join(['?'] * len(columns))
+                    col_names = ', '.join(columns)
+                    values = [row.get(col, '') for col in columns]
+                    cursor.execute(f"INSERT INTO {table} ({col_names}) VALUES ({placeholders})", values)
+                    count += 1
+            self.conn.commit()
+            return count
+        except Exception as e:
+            print(f"导入失败: {e}")
+            return 0
+
+    def get_db_path(self) -> str:
+        """获取数据库路径"""
+        return DB_PATH
+
+    def get_data_dir(self) -> str:
+        """获取数据目录"""
+        return get_data_dir()
 
     def close(self):
         if self.conn:

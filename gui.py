@@ -40,7 +40,7 @@ class RentalManagementApp:
 
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("House Rental Manager")
+        self.root.title("房屋租赁管理系统")
         self.root.geometry("1280x800")
         self.root.minsize(1000, 650)
         self.root.configure(bg=Theme.BG)
@@ -107,7 +107,7 @@ class RentalManagementApp:
         header = tk.Frame(self.root, bg=Theme.HEADER_BG, height=60)
         header.pack(fill=tk.X)
         header.pack_propagate(False)
-        tk.Label(header, text="House Rental Manager - v2.0",
+        tk.Label(header, text="房屋租赁管理系统 - v2.0",
                 font=("Microsoft YaHei", 18, "bold"),
                 bg=Theme.HEADER_BG, fg=Theme.HEADER_TEXT, anchor="w"
         ).pack(side=tk.LEFT, padx=25, pady=12)
@@ -126,7 +126,7 @@ class RentalManagementApp:
         main_container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
         self.notebook = ttk.Notebook(main_container)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=(15, 0))
-        self._create_dashboard_tab()
+        self._create_仪表盘_tab()
         self._create_property_tab()
         # 合同管理标签页（合并了租客管理）
         self._create_contract_tab()
@@ -136,7 +136,7 @@ class RentalManagementApp:
         status_frame = tk.Frame(self.root, bg=Theme.BG_DARK, height=28)
         status_frame.pack(fill=tk.X)
         status_frame.pack_propagate(False)
-        self.status_label = tk.Label(status_frame, text="Ready",
+        self.status_label = tk.Label(status_frame, text="就绪",
                                     font=("Microsoft YaHei", 9),
                                     bg=Theme.BG_DARK, fg=Theme.TEXT_SECONDARY, anchor="w")
         self.status_label.pack(side=tk.LEFT, padx=15, pady=3)

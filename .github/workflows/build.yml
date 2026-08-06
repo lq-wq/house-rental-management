@@ -25,47 +25,47 @@ jobs:
       PYTHONIOENCODING: utf-8
 
     steps:
-    - name: Checkout code
+    - name: 检出代码
       uses: actions/checkout@v4
 
-    - name: Setup Python ${{ matrix.python-version }}
+    - name: 设置 Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: 安装依赖
       run: |
         python -m pip install --upgrade pip
         pip install pyinstaller
 
-    - name: Generate house icon
+    - name: 生成房子图标
       run: python generate_icon.py
 
-    - name: Build EXE with PyInstaller
-      run: pyinstaller --onefile --windowed --name "HouseRentalManager" --icon "house.ico" --add-data "house.ico;." main.py
+    - name: 使用 PyInstaller 构建 EXE（带图标）
+      run: pyinstaller --onefile --windowed --name "房屋租赁管理系统" --icon "house.ico" --add-data "house.ico;." main.py
 
-    - name: Upload artifact
+    - name: 上传构建产物
       uses: actions/upload-artifact@v4
       with:
-        name: HouseRentalManager-Windows-x64
-        path: dist/HouseRentalManager.exe
+        name: 房屋租赁管理系统-Windows-x64
+        path: dist/房屋租赁管理系统.exe
 
-    - name: Create Release
+    - name: 创建 Release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: build-${{ github.run_number }}
-        name: House Rental Manager v2.0 (Build ${{ github.run_number }})
-        files: dist/HouseRentalManager.exe
+        name: 房屋租赁管理系统 v2.0 (Build ${{ github.run_number }})
+        files: dist/房屋租赁管理系统.exe
         generate_release_notes: true
         body: |
-          Auto-build #${{ github.run_number }}
+          自动构建 #${{ github.run_number }}
 
-          Features:
-          - Property management (community, building/unit/room, layout)
-          - Contract & Tenant management (merged)
-          - Payment records with auto-generated next due date
-          - Payment frequency: Monthly/Quarterly/Semi-Annual/Annual
-          - Dashboard with payment reminders
+          功能：
+          - 房源管理（小区名称、栋/单元/号、户型）
+          - 合同与租客管理（合并）
+          - 缴费记录（自动生成下次缴费时间）
+          - 缴费周期：月付/季付/半年付/年付
+          - 仪表盘（含缴费提醒）
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

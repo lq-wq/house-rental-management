@@ -194,7 +194,7 @@ class RentalManagementApp:
         frame = tk.Frame(self.notebook, bg=Theme.BG)
         self.notebook.add(frame, text="Dashboard")
 
-        tk.Label(frame, text="System Overview",
+        tk.Label(frame, text="系统概览",
                 font=("Microsoft YaHei", 16, "bold"),
                 bg=Theme.BG, fg=Theme.PRIMARY).pack(anchor=tk.W, pady=(15, 5), padx=15)
 

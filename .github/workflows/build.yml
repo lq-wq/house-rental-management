@@ -45,10 +45,17 @@ jobs:
       run: pyinstaller build.spec
 
     - name: 验证构建产物
+      shell: pwsh
       run: |
-        echo "检查生成的 EXE 文件..."
-        if exist "dist\房屋租赁管理系统.exe" (echo ✓ EXE 文件已生成) else (echo ✗ EXE 文件未找到 & exit /1)
-        dir /s dist\
+        $exePath = "dist\房屋租赁管理系统.exe"
+        if (Test-Path $exePath) {
+            Write-Host "EXE 文件已生成"
+            Get-ChildItem $exePath | Select-Object Name, Length
+        } else {
+            Write-Host "EXE 文件未找到"
+            Get-ChildItem dist -ErrorAction SilentlyContinue
+            exit 1
+        }
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4

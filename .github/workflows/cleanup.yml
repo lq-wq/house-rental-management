@@ -1,0 +1,103 @@
+name: 清理旧构建记录
+
+on:
+  # 每次推送 main 分支时自动触发（在构建完成后运行清理）
+  workflow_run:
+    workflows: ["Build Windows Executable"]
+    types:
+      - completed
+  # 可手动触发
+  workflow_dispatch:
+  # 每天凌晨 3 点自动清理一次
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+    - name: 检出代码（仅用于获取 GitHub CLI 上下文）
+      uses: actions/checkout@v4
+
+    - name: 清理旧的 Workflow 运行记录（保留最近 3 条）
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "=== 清理 Workflow 运行记录 ==="
+        # 获取当前仓库的所有 workflow 运行记录，按运行时间倒序排列
+        # 跳过前 3 条（保留最近 3 条），删除其余的
+        RUN_IDS=$(gh run list --repo ${{ github.repository }} --limit 100 --json databaseId,conclusion,createdAt --jq '.[].databaseId' | tail -n +4)
+        
+        COUNT=0
+        for RUN_ID in $RUN_IDS; do
+          echo "删除运行记录 ID: $RUN_ID"
+          gh run delete "$RUN_ID" --repo ${{ github.repository }} || echo "删除失败（可能已被删除）"
+          COUNT=$((COUNT + 1))
+        done
+        
+        echo "共删除 $COUNT 条旧的 Workflow 运行记录"
+
+    - name: 清理旧的 Release（保留最近 5 条）
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "=== 清理 Release ==="
+        # 获取所有 Release，按发布时间倒序排列
+        # 跳过前 5 条（保留最近 5 条），删除其余的
+        RELEASES=$(gh release list --repo ${{ github.repository }} --limit 100 --json tagName,isPrerelease,createdAt --jq '.[].tagName' | tail -n +6)
+        
+        COUNT=0
+        for TAG in $RELEASES; do
+          echo "删除 Release: $TAG"
+          gh release delete "$TAG" --repo ${{ github.repository }} --yes --cleanup-tag || echo "删除失败（可能已被删除）"
+          COUNT=$((COUNT + 1))
+        done
+        
+        echo "共删除 $COUNT 条旧的 Release"
+
+    - name: 清理旧的 Artifact（保留最近 3 条）
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "=== 清理 Artifact ==="
+        # 获取所有 artifact，按创建时间倒序排列
+        # 跳过前 3 条，删除其余的
+        ARTIFACTS=$(gh api "/repos/${{ github.repository }}/actions/artifacts?per_page=100" --jq '.artifacts[].id' | tail -n +4)
+        
+        COUNT=0
+        for ARTIFACT_ID in $ARTIFACTS; do
+          echo "删除 Artifact ID: $ARTIFACT_ID"
+          gh api -X DELETE "/repos/${{ github.repository }}/actions/artifacts/$ARTIFACT_ID" || echo "删除失败（可能已被删除）"
+          COUNT=$((COUNT + 1))
+        done
+        
+        echo "共删除 $COUNT 条旧的 Artifact"
+
+    - name: 清理失败的保留标签（删除那些没有对应 Release 的标签）
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "=== 清理孤立标签 ==="
+        # 获取所有标签
+        TAGS=$(gh api "/repos/${{ github.repository }}/git/refs/tags" --jq '.[].ref' | grep "build-" || true)
+        
+        # 获取所有 Release 的标签名
+        RELEASE_TAGS=$(gh release list --repo ${{ github.repository }} --limit 100 --json tagName --jq '.[].tagName' || true)
+        
+        COUNT=0
+        for REF in $TAGS; do
+          TAG=$(echo "$REF" | sed 's|refs/tags/||')
+          # 检查这个标签是否对应一个 Release
+          IS_RELEASE=$(echo "$RELEASE_TAGS" | grep -c "^$TAG$" || true)
+          if [ "$IS_RELEASE" -eq 0 ]; then
+            echo "删除孤立标签: $TAG"
+            gh api -X DELETE "/repos/${{ github.repository }}/git/refs/tags/$TAG" || echo "删除失败"
+            COUNT=$((COUNT + 1))
+          fi
+        done
+        
+        echo "共删除 $COUNT 个孤立标签"

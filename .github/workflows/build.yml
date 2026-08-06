@@ -41,8 +41,14 @@ jobs:
     - name: 生成房子图标
       run: python generate_icon.py
 
-    - name: 使用 PyInstaller 构建 EXE（带图标）
-      run: pyinstaller --onefile --windowed --name "房屋租赁管理系统" --icon "house.ico" --add-data "house.ico;." --hidden-import gui --hidden-import database --hidden-import models --hidden-import utils main.py
+    - name: 使用 PyInstaller 构建 EXE（使用 spec 文件）
+      run: pyinstaller build.spec
+
+    - name: 验证构建产物
+      run: |
+        echo "检查生成的 EXE 文件..."
+        if exist "dist\房屋租赁管理系统.exe" (echo ✓ EXE 文件已生成) else (echo ✗ EXE 文件未找到 & exit /1)
+        dir /s dist\
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4

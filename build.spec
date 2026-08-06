@@ -2,24 +2,24 @@
 """
 PyInstaller 打包配置文件
 """
-
+import os
 import sys
-from pathlib import Path
+import glob
 
-# 项目根目录
-ROOT_DIR = Path(__file__).parent
+# 获取当前目录（spec 文件所在目录，也是项目根目录）
+ROOT_DIR = os.getcwd()
 
 block_cipher = None
 
 a = Analysis(
     ['main.py'],
-    pathex=[str(ROOT_DIR)],                    # 确保能找到当前目录下的模块
+    pathex=[ROOT_DIR],
     binaries=[],
     datas=[
-        ('house.ico', '.'),                    # 打包图标文件
+        ('house.ico', '.'),
     ],
     hiddenimports=[
-        'gui', 'database', 'models', 'utils',  # 显式声明所有模块
+        'gui', 'database', 'models', 'utils',
         'sqlite3', 'csv', 'shutil',
     ],
     hookspath=[],
@@ -29,10 +29,11 @@ a = Analysis(
     noarchive=False,
 )
 
-# 添加所有 .py 文件到打包列表（确保不会遗漏）
-for py_file in ROOT_DIR.glob('*.py'):
-    if py_file.name != 'main.py' and py_file.name != 'build.spec' and py_file.name != 'generate_icon.py':
-        a.datas.append((py_file.name, str(py_file), 'DATA'))
+# 添加所有 .py 文件（确保模块不会遗漏）
+for py_file in glob.glob(os.path.join(ROOT_DIR, '*.py')):
+    basename = os.path.basename(py_file)
+    if basename not in ('main.py', 'build.spec', 'generate_icon.py'):
+        a.datas.append((basename, py_file, 'DATA'))
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -50,11 +51,11 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,                # 不显示控制台窗口
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='house.ico',             # 设置图标
+    icon='house.ico',
 )

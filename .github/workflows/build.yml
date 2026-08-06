@@ -42,7 +42,7 @@ jobs:
       run: python generate_icon.py
 
     - name: 使用 PyInstaller 构建 EXE（带图标）
-      run: pyinstaller --onefile --windowed --name "房屋租赁管理系统" --icon "house.ico" --add-data "house.ico;." main.py
+      run: pyinstaller --onefile --windowed --name "房屋租赁管理系统" --icon "house.ico" --add-data "house.ico;." --hidden-import gui --hidden-import database --hidden-import models --hidden-import utils main.py
 
     - name: 上传构建产物
       uses: actions/upload-artifact@v4
@@ -67,5 +67,8 @@ jobs:
           - 缴费记录（自动生成下次缴费时间）
           - 缴费周期：月付/季付/半年付/年付
           - 仪表盘（含缴费提醒）
+          - 数据库备份与恢复
+          - CSV 导入导出
+          - 按楼栋统计 / 自定义时间统计
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

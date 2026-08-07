@@ -555,7 +555,7 @@ class RentalManagementApp:
 
         tcolumns = ("id", "姓名", "电话", "邮箱", "身份证号", "紧急联系人", "紧急电话")
         self.tenant_tree = ttk.Treeview(tenant_table, columns=tcolumns, show="headings",
-                                        selectmode="browse", height=5)
+                                        selectmode="browse", height=6)
         for col in tcolumns:
             self.tenant_tree.heading(col, text=col)
         self.tenant_tree.column("id", width=40, anchor=tk.CENTER)

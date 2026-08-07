@@ -505,7 +505,7 @@ class RentalManagementApp:
 
         columns = ("id", "房源", "租客", "起始日期", "结束日期", "缴费周期", "月租金", "押金", "状态")
         self.lease_tree = ttk.Treeview(table_frame, columns=columns, show="headings",
-                                       selectmode="browse", height=6)
+                                       selectmode="browse", height=8)
         for col in columns:
             self.lease_tree.heading(col, text=col)
         self.lease_tree.column("id", width=40, anchor=tk.CENTER)

@@ -477,6 +477,8 @@ class RentalManagementApp:
                    style="Success.TButton").pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="查看详情", command=self._view_lease,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="编辑", command=self._edit_lease,
+                   style="Flat.TButton").pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="解约合同", command=self._terminate_lease,
                    style="Danger.TButton").pack(side=tk.LEFT, padx=2)
 

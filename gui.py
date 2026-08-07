@@ -267,7 +267,7 @@ class RentalManagementApp:
         ttk.Button(btn_frame, text="刷新数据", command=self._refresh_dashboard,
                    style="Flat.TButton").pack(side=tk.LEFT, padx=3)
 
-    def _refresh_reminders(self):
+        def _refresh_reminders(self):
         for w in self.reminder_frame.winfo_children():
             w.destroy()
 
@@ -286,19 +286,17 @@ class RentalManagementApp:
                 elif days == 0:
                     status_text = "今天到期"
                     color = Theme.WARNING
-                elif days <= 3:
+                # +++ 修改：从 7 天改为 15 天 +++
+                elif days <= 15:
                     status_text = f"还剩 {days} 天"
-                    color = Theme.WARNING
-                elif days <= 7:
-                    status_text = f"还剩 {days} 天"
-                    color = Theme.ACCENT
+                    color = Theme.WARNING if days <= 3 else Theme.ACCENT
                 else:
                     continue
                 reminders.append((days, lease, next_date, amount, status_text, color))
 
         if not reminders:
             if leases:
-                tk.Label(self.reminder_frame, text="所有缴费均在正常周期内",
+                tk.Label(self.reminder_frame, text="所有缴费均在正常周期内（15天内无到期）",
                         font=("Microsoft YaHei", 11),
                         bg=Theme.BG, fg=Theme.SUCCESS).pack(anchor=tk.W, pady=10)
             else:
@@ -308,16 +306,36 @@ class RentalManagementApp:
             return
 
         reminders.sort(key=lambda x: x[0])
-        for days, lease, next_date, amount, status_text, color in reminders[:6]:
+        for days, lease, next_date, amount, status_text, color in reminders[:8]:
             card = tk.Frame(self.reminder_frame, bg=Theme.CARD,
                           highlightbackground=color, highlightthickness=1, padx=15, pady=8)
             card.pack(fill=tk.X, pady=3)
+
+            # +++ 新增：绑定点击事件，点击卡片查看合同详情 +++
+            lease_id_for_click = lease.id
+            def make_click_handler(lid):
+                return lambda e: self._show_lease_detail_by_id(lid)
+            card.bind("<Button-1>", make_click_handler(lease_id_for_click))
+            card.configure(cursor="hand2")
+
             color_bar = tk.Frame(card, bg=color, width=4)
             color_bar.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 12))
+            # +++ 也绑定点击事件到子组件 +++
+            color_bar.bind("<Button-1>", make_click_handler(lease_id_for_click))
+            color_bar.configure(cursor="hand2")
+
             info_frame = tk.Frame(card, bg=Theme.CARD)
             info_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+            # +++ 绑定点击事件 +++
+            info_frame.bind("<Button-1>", make_click_handler(lease_id_for_click))
+            info_frame.configure(cursor="hand2")
+
             top_row = tk.Frame(info_frame, bg=Theme.CARD)
             top_row.pack(fill=tk.X)
+            # +++ 绑定点击事件 +++
+            top_row.bind("<Button-1>", make_click_handler(lease_id_for_click))
+            top_row.configure(cursor="hand2")
+
             tk.Label(top_row, text=f"{lease.property_name}",
                     font=("Microsoft YaHei", 11, "bold"),
                     bg=Theme.CARD, fg=Theme.PRIMARY).pack(side=tk.LEFT)
@@ -326,12 +344,17 @@ class RentalManagementApp:
                     bg=Theme.CARD, fg=Theme.TEXT_SECONDARY).pack(side=tk.LEFT)
             bottom_row = tk.Frame(info_frame, bg=Theme.CARD)
             bottom_row.pack(fill=tk.X, pady=(3, 0))
+            # +++ 绑定点击事件 +++
+            bottom_row.bind("<Button-1>", make_click_handler(lease_id_for_click))
+            bottom_row.configure(cursor="hand2")
+
             tk.Label(bottom_row, text=f"缴费日: {next_date}  |  金额: {format_currency(amount)}  |  {lease.payment_frequency}",
                     font=("Microsoft YaHei", 9),
                     bg=Theme.CARD, fg=Theme.TEXT_SECONDARY).pack(side=tk.LEFT)
             tk.Label(card, text=f" {status_text} ",
                     font=("Microsoft YaHei", 10, "bold"),
                     bg=color, fg="white", padx=10, pady=2).pack(side=tk.RIGHT)
+
 
     def _refresh_dashboard(self):
         stats = self.db.get_statistics()

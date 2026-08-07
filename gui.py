@@ -243,6 +243,24 @@ class RentalManagementApp:
             cards_frame.columnconfigure(i%4, weight=1)
             self._stat_cards[key] = card
 
+            # 递归绑定所有子组件，确保点击任何位置都能触发
+            def bind_all_children(widget, k=key):
+                widget.configure(cursor="hand2")
+                widget.bind("<Button-1>", lambda e, key2=k: self._on_stat_card_click(key2))
+                for child in widget.winfo_children():
+                    bind_all_children(child, k)
+
+            bind_all_children(card, key)
+        
+        for i, (key, title, init_val, color) in enumerate(stats_info):
+            if key in ("monthly_income", "total_income"):
+                card = self._create_card(cards_frame, title, "0.00", color, width=150, height=95)
+            else:
+                card = self._create_card(cards_frame, title, init_val, color, width=150, height=95)
+            card.grid(row=i//4, column=i%4, padx=5, pady=5, sticky="nsew")
+            cards_frame.columnconfigure(i%4, weight=1)
+            self._stat_cards[key] = card
+
             # 为每个卡片绑定点击事件
             card_key = key
             card.configure(cursor="hand2")

@@ -651,6 +651,30 @@ class RentalManagementApp:
             self._refresh_dashboard()
             self.set_status("合同已解约")
 
+        def _edit_lease(self):
+        """编辑合同"""
+        selected = self.lease_tree.selection()
+        if not selected:
+            messagebox.showwarning("提示", "请先选择一个合同")
+            return
+        values = self.lease_tree.item(selected[0])["values"]
+        lease = self.db.get_lease(values[0])
+        if not lease:
+            messagebox.showwarning("提示", "合同不存在")
+            return
+
+        # 获取所有房源和租客用于编辑选择
+        properties = self.db.get_all_properties()
+        tenants = self.db.get_all_tenants()
+
+        dialog = LeaseDialog(self.root, "编辑合同", properties, tenants, lease)
+        if dialog.result:
+            self.db.update_lease(dialog.result)
+            self._refresh_lease_list()
+            self._refresh_property_list()
+            self._refresh_dashboard()
+            self.set_status(f"合同已更新 (ID: {dialog.result.id})")
+
     def _show_add_tenant(self):
         dialog = TenantDialog(self.root, "添加租客")
         if dialog.result:
